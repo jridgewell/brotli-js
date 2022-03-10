@@ -3,9 +3,9 @@
    Distributed under MIT license.
    See file LICENSE for detail or copy at https://opensource.org/licenses/MIT
 */
+import {testSuite} from "./test.js";
 import {BrotliDecode} from "./decode.js";
-const testSuite = goog.require('goog.testing.testSuite');
-goog.require('goog.testing.asserts');
+import assert from "assert";
 
 /**
  * NB: Use intermediate chunks to avoid "Maximum call stack size exceeded".
@@ -42,9 +42,9 @@ function checkSynth(compressed, expectSuccess, expectedOutput) {
   } catch (ex) {
     success = false;
   }
-  assertEquals(expectSuccess, success);
+  assert.strictEqual(expectSuccess, success);
   if (expectSuccess) {
-    assertEquals(expectedOutput, bytesToString(actual));
+    assert.strictEqual(expectedOutput, bytesToString(actual));
   }
 }
 

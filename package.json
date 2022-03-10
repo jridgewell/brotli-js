@@ -1,14 +1,12 @@
 {
   "name": "brotli",
+  "type": "module",
   "description": "Pure JavaScript Brotli implementation",
-  "bin": {
-    "brotli": "cli.js"
-  },
+  "main": "decode.js",
   "files": [
-    "cli.js",
-    "decode.js",
+    "decode.js"
   ],
-  "dependencies": {
-    "yargs": "~8.0.2"
-  },
+  "scripts": {
+    "test": "node test.js"
+  }
 }

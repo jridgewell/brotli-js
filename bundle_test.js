@@ -3,10 +3,10 @@
    Distributed under MIT license.
    See file LICENSE for detail or copy at https://opensource.org/licenses/MIT
 */
+import {testSuite} from "./test.js";
 import {BrotliDecode} from "./decode.js";
 import {makeTestData} from "./test_data.js";
-goog.require('goog.testing.asserts');
-const testSuite = goog.require('goog.testing.testSuite');
+import assert from "assert";
 
 const CRC_64_POLY = new Uint32Array([0xD7870F42, 0xC96C5795]);
 
@@ -55,7 +55,7 @@ function checkEntry(entry, data) {
   const expectedCrc = entry.substring(0, 16);
   const decompressed = BrotliDecode(data);
   const crc = calculateCrc64(decompressed);
-  assertEquals(expectedCrc, crc);
+  assert.strictEqual(expectedCrc, crc);
 }
 
 let allTests = {};
