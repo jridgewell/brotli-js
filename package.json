@@ -9,10 +9,12 @@
   "scripts": {
     "test": "node test.js",
     "lint": "run-s lint:*",
-    "lint:prettier": "prettier --write *.js"
+    "lint:prettier": "prettier --write src test",
+    "lint:typescript": "tsc --noEmit"
   },
   "devDependencies": {
     "npm-run-all": "4.1.5",
-    "prettier": "2.5.1"
+    "prettier": "2.5.1",
+    "typescript": "4.6.2"
   }
 }
