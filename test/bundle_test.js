@@ -3,8 +3,8 @@
    Distributed under MIT license.
    See file LICENSE for detail or copy at https://opensource.org/licenses/MIT
 */
-import { testSuite } from "./test.js";
-import { BrotliDecode } from "./decode.js";
+
+import { BrotliDecode } from "../src/decode.js";
 import { makeTestData } from "./test_data.js";
 import assert from "assert";
 
@@ -58,15 +58,11 @@ function checkEntry(entry, data) {
   assert.strictEqual(expectedCrc, crc);
 }
 
-let allTests = {};
-const testData = makeTestData();
-for (let entry in testData) {
-  if (!testData.hasOwnProperty(entry)) {
-    continue;
+describe("bundle", () => {
+  const testData = makeTestData();
+  for (let entry in testData) {
+    const name = entry.substring(17);
+    const data = testData[entry];
+    it(name, checkEntry.bind(null, entry, data));
   }
-  const name = entry.substring(17);
-  const data = testData[entry];
-  allTests["test_" + name] = checkEntry.bind(null, entry, data);
-}
-
-testSuite(allTests);
+});

@@ -110,7 +110,7 @@ let makeBrotliDecode = () => {
    */
   function calculateDistanceAlphabetLimit(maxDistance, npostfix, ndirect) {
     if (maxDistance < ndirect + (2 << npostfix)) {
-      throw "maxDistance is too small";
+      throw new Error("maxDistance is too small");
     }
     let /** @type{number} */ offset = ((maxDistance - ndirect) >> npostfix) + 4;
     let /** @type{number} */ ndistbits = log2floor(offset) - 1;
@@ -201,7 +201,7 @@ let makeBrotliDecode = () => {
    */
   function enableEagerOutput(s) {
     if (s.runningState != 1) {
-      throw "State MUST be freshly initialized";
+      throw new Error("State MUST be freshly initialized");
     }
     s.isEager = 1;
   }
@@ -211,7 +211,7 @@ let makeBrotliDecode = () => {
    */
   function enableLargeWindow(s) {
     if (s.runningState != 1) {
-      throw "State MUST be freshly initialized";
+      throw new Error("State MUST be freshly initialized");
     }
     s.isLargeWindow = 1;
   }
@@ -222,7 +222,7 @@ let makeBrotliDecode = () => {
    */
   function attachDictionaryChunk(s, data) {
     if (s.runningState != 1) {
-      throw "State MUST be freshly initialized";
+      throw new Error("State MUST be freshly initialized");
     }
     if (s.cdNumChunks == 0) {
       s.cdChunks = new Array(16);
@@ -230,7 +230,7 @@ let makeBrotliDecode = () => {
       s.cdBlockBits = -1;
     }
     if (s.cdNumChunks == 15) {
-      throw "Too many dictionary chunks";
+      throw new Error("Too many dictionary chunks");
     }
     s.cdChunks[s.cdNumChunks] = data;
     s.cdNumChunks++;
@@ -244,7 +244,7 @@ let makeBrotliDecode = () => {
    */
   function initState(s, input) {
     if (s.runningState != 0) {
-      throw "State MUST be uninitialized";
+      throw new Error("State MUST be uninitialized");
     }
     s.blockTrees = new Int32Array(3091);
     s.blockTrees[0] = 7;
@@ -263,7 +263,7 @@ let makeBrotliDecode = () => {
    */
   function close(s) {
     if (s.runningState == 0) {
-      throw "State MUST be initialized";
+      throw new Error("State MUST be initialized");
     }
     if (s.runningState == 11) {
       return;
@@ -315,7 +315,7 @@ let makeBrotliDecode = () => {
     if (sizeNibbles == 7) {
       s.isMetadata = 1;
       if (readFewBits(s, 1) != 0) {
-        throw "Corrupted reserved bit";
+        throw new Error("Corrupted reserved bit");
       }
       let /** @type{number} */ sizeBytes = readFewBits(s, 2);
       if (sizeBytes == 0) {
@@ -329,7 +329,7 @@ let makeBrotliDecode = () => {
         }
         let /** @type{number} */ bits = readFewBits(s, 8);
         if (bits == 0 && i + 1 == sizeBytes && sizeBytes > 1) {
-          throw "Exuberant nibble";
+          throw new Error("Exuberant nibble");
         }
         s.metaBlockLength |= bits << (i * 8);
       }
@@ -342,7 +342,7 @@ let makeBrotliDecode = () => {
         }
         let /** @type{number} */ bits = readFewBits(s, 4);
         if (bits == 0 && i + 1 == sizeNibbles && sizeNibbles > 4) {
-          throw "Exuberant nibble";
+          throw new Error("Exuberant nibble");
         }
         s.metaBlockLength |= bits << (i * 4);
       }
@@ -491,7 +491,7 @@ let makeBrotliDecode = () => {
         repeat += readFewBits(s, extraBits) + 3;
         let /** @type{number} */ repeatDelta = repeat - oldRepeat;
         if (symbol + repeatDelta > numSymbols) {
-          throw "symbol + repeatDelta > numSymbols";
+          throw new Error("symbol + repeatDelta > numSymbols");
         }
         for (let /** @type{number} */ i = 0; i < repeatDelta; i++) {
           codeLengths[symbol++] = repeatCodeLen;
@@ -502,7 +502,7 @@ let makeBrotliDecode = () => {
       }
     }
     if (space != 0) {
-      throw "Unused space";
+      throw new Error("Unused space");
     }
     codeLengths.fill(0, symbol, numSymbols);
   }
@@ -515,7 +515,7 @@ let makeBrotliDecode = () => {
     for (let /** @type{number} */ i = 0; i < length - 1; ++i) {
       for (let /** @type{number} */ j = i + 1; j < length; ++j) {
         if (symbols[i] == symbols[j]) {
-          throw "Duplicate simple Huffman code symbol";
+          throw new Error("Duplicate simple Huffman code symbol");
         }
       }
     }
@@ -549,7 +549,7 @@ let makeBrotliDecode = () => {
       }
       let /** @type{number} */ symbol = readFewBits(s, maxBits);
       if (symbol >= alphabetSizeLimit) {
-        throw "Can't readHuffmanCode";
+        throw new Error("Can't readHuffmanCode");
       }
       symbols[i] = symbol;
     }
@@ -632,7 +632,7 @@ let makeBrotliDecode = () => {
       }
     }
     if (space != 0 && numCodes != 1) {
-      throw "Corrupted Huffman code histogram";
+      throw new Error("Corrupted Huffman code histogram");
     }
     readHuffmanCodeLengths(
       codeLengthCodeLengths,
@@ -743,7 +743,7 @@ let makeBrotliDecode = () => {
         let /** @type{number} */ reps = (1 << code) + readFewBits(s, code);
         while (reps != 0) {
           if (i >= contextMapSize) {
-            throw "Corrupted context map";
+            throw new Error("Corrupted context map");
           }
           contextMap[i] = 0;
           i++;
@@ -1169,7 +1169,7 @@ let makeBrotliDecode = () => {
    */
   function doUseDictionary(s, fence) {
     if (s.distance > 0x7ffffffc) {
-      throw "Invalid backward reference";
+      throw new Error("Invalid backward reference");
     }
     let /** @type{number} */ address =
         s.distance - s.maxDistance - 1 - s.cdTotalSize;
@@ -1182,11 +1182,11 @@ let makeBrotliDecode = () => {
         );
       let /** @type{number} */ wordLength = s.copyLength;
       if (wordLength > 31) {
-        throw "Invalid backward reference";
+        throw new Error("Invalid backward reference");
       }
       let /** @type{number} */ shift = sizeBits[wordLength];
       if (shift == 0) {
-        throw "Invalid backward reference";
+        throw new Error("Invalid backward reference");
       }
       let /** @type{number} */ offset = offsets[wordLength];
       let /** @type{number} */ mask = (1 << shift) - 1;
@@ -1195,7 +1195,7 @@ let makeBrotliDecode = () => {
       offset += wordIdx * wordLength;
       let /** @type{!Transforms} */ transforms = RFC_TRANSFORMS;
       if (transformIdx >= transforms.numTransforms) {
-        throw "Invalid backward reference";
+        throw new Error("Invalid backward reference");
       }
       let /** @type{number} */ len = transformDictionaryWord(
           s.ringBuffer,
@@ -1253,7 +1253,7 @@ let makeBrotliDecode = () => {
       index++;
     }
     if (s.cdTotalSize > address + length) {
-      throw "Invalid backward reference";
+      throw new Error("Invalid backward reference");
     }
     s.distRbIdx = (s.distRbIdx + 1) & 0x3;
     s.rings[s.distRbIdx] = s.distance;
@@ -1309,15 +1309,15 @@ let makeBrotliDecode = () => {
    */
   function decompress(s) {
     if (s.runningState == 0) {
-      throw "Can't decompress until initialized";
+      throw new Error("Can't decompress until initialized");
     }
     if (s.runningState == 11) {
-      throw "Can't decompress after close";
+      throw new Error("Can't decompress after close");
     }
     if (s.runningState == 1) {
       let /** @type{number} */ windowBits = decodeWindowBits(s);
       if (windowBits == -1) {
-        throw "Invalid 'windowBits' code";
+        throw new Error("Invalid 'windowBits' code");
       }
       s.maxRingBufferSize = 1 << windowBits;
       s.maxBackwardDistance = s.maxRingBufferSize - 16;
@@ -1330,7 +1330,7 @@ let makeBrotliDecode = () => {
       switch (s.runningState) {
         case 2:
           if (s.metaBlockLength < 0) {
-            throw "Invalid metablock length";
+            throw new Error("Invalid metablock length");
           }
           readNextMetablockHeader(s);
           fence = calculateFence(s);
@@ -1490,7 +1490,7 @@ let makeBrotliDecode = () => {
               s.distance =
                 s.rings[index] + DISTANCE_SHORT_CODE_VALUE_OFFSET[distanceCode];
               if (s.distance < 0) {
-                throw "Negative distance";
+                throw new Error("Negative distance");
               }
             } else {
               let /** @type{number} */ extraBits =
@@ -1531,7 +1531,7 @@ let makeBrotliDecode = () => {
             s.rings[s.distRbIdx] = s.distance;
           }
           if (s.copyLength > s.metaBlockLength) {
-            throw "Invalid backward reference";
+            throw new Error("Invalid backward reference");
           }
           s.j = 0;
           s.runningState = 8;
@@ -1624,12 +1624,12 @@ let makeBrotliDecode = () => {
           s.runningState = s.nextRunningState;
           continue;
         default:
-          throw "Unexpected state " + s.runningState;
+          throw new Error("Unexpected state ") + s.runningState;
       }
     }
     if (s.runningState == 10) {
       if (s.metaBlockLength < 0) {
-        throw "Invalid metablock length";
+        throw new Error("Invalid metablock length");
       }
       jumpToByteBoundary(s);
       checkHealth(s, 1);
@@ -1991,7 +1991,7 @@ let makeBrotliDecode = () => {
       if (halfAvailable(s) >= -2) {
         return;
       }
-      throw "No more input";
+      throw new Error("No more input");
     }
     let /** @type{number} */ readOffset = s.halfOffset << 1;
     let /** @type{number} */ bytesInBuffer = 4096 - readOffset;
@@ -2027,10 +2027,10 @@ let makeBrotliDecode = () => {
     let /** @type{number} */ byteOffset =
         (s.halfOffset << 1) + ((s.bitOffset + 7) >> 3) - 4;
     if (byteOffset > s.tailBytes) {
-      throw "Read after end";
+      throw new Error("Read after end");
     }
     if (endOfStream != 0 && byteOffset != s.tailBytes) {
-      throw "Unused bytes after end";
+      throw new Error("Unused bytes after end");
     }
   }
   /**
@@ -2039,7 +2039,7 @@ let makeBrotliDecode = () => {
    */
   function assertAccumulatorHealthy(s) {
     if (s.bitOffset > 32) {
-      throw "Accumulator underloaded: " + s.bitOffset;
+      throw new Error("Accumulator underloaded: ") + s.bitOffset;
     }
   }
   /**
@@ -2112,7 +2112,7 @@ let makeBrotliDecode = () => {
     if (padding != 0) {
       let /** @type{number} */ paddingBits = readFewBits(s, padding);
       if (paddingBits != 0) {
-        throw "Corrupted padding bits";
+        throw new Error("Corrupted padding bits");
       }
     }
   }
@@ -2136,7 +2136,7 @@ let makeBrotliDecode = () => {
    */
   function copyRawBytes(s, data, offset, length) {
     if ((s.bitOffset & 7) != 0) {
-      throw "Unaligned copyBytes";
+      throw new Error("Unaligned copyBytes");
     }
     while (s.bitOffset != 32 && length != 0) {
       data[offset++] = s.accumulator32 >>> s.bitOffset;
@@ -2175,7 +2175,7 @@ let makeBrotliDecode = () => {
     while (length > 0) {
       let /** @type{number} */ len = readInput(s.input, data, offset, length);
       if (len == -1) {
-        throw "Unexpected end of input";
+        throw new Error("Unexpected end of input");
       }
       offset += len;
       length -= len;
@@ -2411,14 +2411,14 @@ let makeBrotliDecode = () => {
    */
   function setData(newData, newSizeBits) {
     if (isDirect(newData) == 0 || isReadOnly(newData) == 0) {
-      throw "newData must be a direct read-only byte buffer";
+      throw new Error("newData must be a direct read-only byte buffer");
     }
     if (newSizeBits.length > 31) {
-      throw "sizeBits length must be at most " + 31;
+      throw new Error("sizeBits length must be at most ") + 31;
     }
     for (let /** @type{number} */ i = 0; i < 4; ++i) {
       if (newSizeBits[i] != 0) {
-        throw "first " + 4 + " must be 0";
+        throw new Error("first ") + 4 + " must be 0";
       }
     }
     let /** @type{!Int32Array} */ dictionaryOffsets = offsets;
@@ -2431,11 +2431,11 @@ let makeBrotliDecode = () => {
       let /** @type{number} */ bits = dictionarySizeBits[i];
       if (bits != 0) {
         if (bits >= 31) {
-          throw "newSizeBits values must be less than 31";
+          throw new Error("newSizeBits values must be less than 31");
         }
         pos += i << bits;
         if (pos <= 0 || pos > limit) {
-          throw "newSizeBits is inconsistent: overflow";
+          throw new Error("newSizeBits is inconsistent: overflow");
         }
       }
     }
@@ -2443,7 +2443,7 @@ let makeBrotliDecode = () => {
       dictionaryOffsets[i] = pos;
     }
     if (pos != limit) {
-      throw "newSizeBits is inconsistent: underflow";
+      throw new Error("newSizeBits is inconsistent: underflow");
     }
     data = newData;
   }
@@ -2467,7 +2467,7 @@ let makeBrotliDecode = () => {
   ) {
     let /** @type{!Int8Array} */ dict = toUsAsciiBytes(data0 + data1);
     if (dict.length != dictionary.length) {
-      throw "Corrupted brotli dictionary";
+      throw new Error("Corrupted brotli dictionary");
     }
     let /** @type{number} */ offset = 0;
     let /** @type{number} */ n = skipFlip.length;

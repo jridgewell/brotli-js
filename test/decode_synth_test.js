@@ -3,8 +3,7 @@
    Distributed under MIT license.
    See file LICENSE for detail or copy at https://opensource.org/licenses/MIT
 */
-import { testSuite } from "./test.js";
-import { BrotliDecode } from "./decode.js";
+import { BrotliDecode } from "../src/decode.js";
 import assert from "assert";
 
 /**
@@ -46,6 +45,14 @@ function checkSynth(compressed, expectSuccess, expectedOutput) {
   if (expectSuccess) {
     assert.strictEqual(expectedOutput, bytesToString(actual));
   }
+}
+
+function testSuite(suite) {
+  describe("decode_synth", () => {
+    for (const key in suite) {
+      it(key, suite[key]);
+    }
+  });
 }
 
 testSuite({

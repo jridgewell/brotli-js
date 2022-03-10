@@ -3,8 +3,7 @@
    Distributed under MIT license.
    See file LICENSE for detail or copy at https://opensource.org/licenses/MIT
 */
-import { testSuite } from "./test.js";
-import { BrotliDecode } from "./decode.js";
+import { BrotliDecode } from "../src/decode.js";
 import assert from "assert";
 
 /**
@@ -12,7 +11,7 @@ import assert from "assert";
  * @return {string}
  */
 function bytesToString(bytes) {
-  return String.fromCharCode.apply(null, new Uint16Array(bytes));
+  return String.fromCharCode(...bytes);
 }
 
 /**
@@ -25,15 +24,15 @@ function stringToBytes(str) {
   return out;
 }
 
-testSuite({
-  testMetadata() {
+describe("decode", () => {
+  it("testMetadata", () => {
     assert.strictEqual(
       "",
       bytesToString(BrotliDecode(Int8Array.from([1, 11, 0, 42, 3])))
     );
-  },
+  });
 
-  testCompoundDictionary() {
+  it("testCompoundDictionary", () => {
     const txt = "kot lomom kolol slona\n";
     const dictionary = stringToBytes(txt);
     const compressed = [
@@ -45,5 +44,5 @@ testSuite({
       txt,
       bytesToString(BrotliDecode(Int8Array.from(compressed), options))
     );
-  },
+  });
 });
