@@ -14,7 +14,6 @@ testSuite({
     return import("./decode_synth_test.js");
   },
 
-
   decode() {
     return import("./decode_test.js");
   },

@@ -3,12 +3,12 @@
    Distributed under MIT license.
    See file LICENSE for detail or copy at https://opensource.org/licenses/MIT
 */
-import {testSuite} from "./test.js";
-import {BrotliDecode} from "./decode.js";
-import {makeTestData} from "./test_data.js";
+import { testSuite } from "./test.js";
+import { BrotliDecode } from "./decode.js";
+import { makeTestData } from "./test_data.js";
 import assert from "assert";
 
-const CRC_64_POLY = new Uint32Array([0xD7870F42, 0xC96C5795]);
+const CRC_64_POLY = new Uint32Array([0xd7870f42, 0xc96c5795]);
 
 /**
  * Calculates binary data footprint.
@@ -17,11 +17,11 @@ const CRC_64_POLY = new Uint32Array([0xD7870F42, 0xC96C5795]);
  * @return {string} footprint
  */
 function calculateCrc64(data) {
-  let crc = new Uint32Array([0xFFFFFFFF, 0xFFFFFFFF]);
+  let crc = new Uint32Array([0xffffffff, 0xffffffff]);
   let c = new Uint32Array(2);
   for (let i = 0; i < data.length; ++i) {
     c[1] = 0;
-    c[0] = (crc[0] ^ data[i]) & 0xFF;
+    c[0] = (crc[0] ^ data[i]) & 0xff;
     for (let k = 0; k < 8; ++k) {
       const isOdd = c[0] & 1;
       c[0] = (c[0] >>> 1) | ((c[1] & 1) << 31);
@@ -31,7 +31,7 @@ function calculateCrc64(data) {
         c[1] = c[1] ^ CRC_64_POLY[1];
       }
     }
-    crc[0] = ((crc[0] >>> 8) | ((crc[1] & 0xFF) << 24)) ^ c[0];
+    crc[0] = ((crc[0] >>> 8) | ((crc[1] & 0xff) << 24)) ^ c[0];
     crc[1] = (crc[1] >>> 8) ^ c[1];
   }
   crc[0] = ~crc[0];
@@ -66,7 +66,7 @@ for (let entry in testData) {
   }
   const name = entry.substring(17);
   const data = testData[entry];
-  allTests['test_' + name] = checkEntry.bind(null, entry, data);
+  allTests["test_" + name] = checkEntry.bind(null, entry, data);
 }
 
 testSuite(allTests);

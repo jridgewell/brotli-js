@@ -7,6 +7,12 @@
     "decode.js"
   ],
   "scripts": {
-    "test": "node test.js"
+    "test": "node test.js",
+    "lint": "run-s lint:*",
+    "lint:prettier": "prettier --write *.js"
+  },
+  "devDependencies": {
+    "npm-run-all": "4.1.5",
+    "prettier": "2.5.1"
   }
 }
