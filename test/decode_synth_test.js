@@ -14,7 +14,9 @@ import assert from "assert";
 function bytesToString(bytes) {
   const kChunkSize = 4096;
   if (bytes.length <= kChunkSize) {
-    return String.fromCharCode(...new Uint8Array(bytes.buffer, bytes.byteOffset, bytes.byteLength));
+    return String.fromCharCode(
+      ...new Uint8Array(bytes.buffer, bytes.byteOffset, bytes.byteLength)
+    );
   }
   let chunks = [];
   for (let start = 0; start < bytes.length; start += kChunkSize) {

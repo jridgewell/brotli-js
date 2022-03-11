@@ -4,16 +4,16 @@
    See file LICENSE for detail or copy at https://opensource.org/licenses/MIT
 */
 
-import {data, offsets, sizeBits} from "./dictionary.js";
-import {CMD_LOOKUP} from "./commands.js";
-import {RFC_TRANSFORMS} from "./transforms.js";
-import {LOOKUP} from "./lookup.js";
+import { data, offsets, sizeBits } from "./dictionary.js";
+import { CMD_LOOKUP } from "./commands.js";
+import { RFC_TRANSFORMS } from "./transforms.js";
+import { LOOKUP } from "./lookup.js";
 
 /**
- * @typedef {Object} Options
+ * @typedef {Object} OptionsType
  * @property {?Int8Array} customDictionary
  */
-let Options;
+let OptionsType;
 
 /**
  * @constructor
@@ -142,26 +142,6 @@ function decodeWindowBits(s) {
     }
   }
   return 17;
-}
-/**
- * @param {!State} s
- * @return {void}
- */
-function enableEagerOutput(s) {
-  if (s.runningState != 1) {
-    throw new Error("State MUST be freshly initialized");
-  }
-  s.isEager = 1;
-}
-/**
- * @param {!State} s
- * @return {void}
- */
-function enableLargeWindow(s) {
-  if (s.runningState != 1) {
-    throw new Error("State MUST be freshly initialized");
-  }
-  s.isLargeWindow = 1;
 }
 /**
  * @param {!State} s
@@ -1271,7 +1251,8 @@ function decompress(s) {
       case 3:
         readMetablockHuffmanCodesAndContextMaps(s);
         s.runningState = 4;
-      case 4:
+      // fall through
+      case 4: {
         if (s.metaBlockLength <= 0) {
           s.runningState = 2;
           continue;
@@ -1320,7 +1301,9 @@ function decompress(s) {
             : readManyBits(s, copyLengthExtraBits));
         s.j = 0;
         s.runningState = 7;
-      case 7:
+        // fall through
+      }
+      case 7: {
         if (s.trivialLiteralContext != 0) {
           while (s.j < s.insertLength) {
             if (s.halfOffset > 2030) {
@@ -1463,7 +1446,9 @@ function decompress(s) {
         }
         s.j = 0;
         s.runningState = 8;
-      case 8:
+        // fall through
+      }
+      case 8: {
         let /** @type{number} */ src = (s.pos - s.distance) & ringBufferMask;
         let /** @type{number} */ dst = s.pos;
         let /** @type{number} */ copyLength = s.copyLength - s.j;
@@ -1501,6 +1486,7 @@ function decompress(s) {
           s.runningState = 4;
         }
         continue;
+      }
       case 9:
         doUseDictionary(s, fence);
         continue;
@@ -1534,6 +1520,7 @@ function decompress(s) {
       case 12:
         s.ringBufferBytesReady = min(s.pos, s.ringBufferSize);
         s.runningState = 13;
+      // fall through
       case 13:
         if (writeRingBuffer(s) == 0) {
           return;
@@ -1653,6 +1640,7 @@ function transformDictionaryWord(
         scalar += c0;
         dst[shiftOffset] = scalar & 0x7f;
       } else if (c0 < 0xc0) {
+        // noop
       } else if (c0 < 0xe0) {
         if (len >= 2) {
           let /** @type{number} */ c1 = dst[shiftOffset + 1];
@@ -1891,15 +1879,6 @@ function checkHealth(s, endOfStream) {
   }
   if (endOfStream != 0 && byteOffset != s.tailBytes) {
     throw new Error("Unused bytes after end");
-  }
-}
-/**
- * @param {!State} s
- * @return {void}
- */
-function assertAccumulatorHealthy(s) {
-  if (s.bitOffset > 32) {
-    throw new Error("Accumulator underloaded: "+ s.bitOffset) ;
   }
 }
 /**
@@ -2211,7 +2190,6 @@ function State() {
   this.rings[3] = 4;
 }
 
-
 /* GENERATED CODE END */
 
 /**
@@ -2252,16 +2230,16 @@ function readInput(src, dst, offset, length) {
 }
 
 /**
- * @param {!InputStream} src
+ * @param {!InputStream} _src
  * @return {!number}
  */
-function closeInput(src) {
+function closeInput(_src) {
   return 0;
 }
 
 /**
  * @param {!Int8Array} bytes
- * @param {Options=} options
+ * @param {OptionsType=} options
  * @return {!Int8Array}
  */
 function decode(bytes, options) {
@@ -2304,6 +2282,6 @@ function decode(bytes, options) {
 }
 
 /**
- * @type {function(!Int8Array, Options=):!Int8Array}
+ * @type {function(!Int8Array, OptionsType=):!Int8Array}
  */
 export { decode as BrotliDecode };

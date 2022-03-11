@@ -16,26 +16,26 @@ function asReadOnlyBuffer(src) {
 }
 
 /**
- * @param {!Int8Array} src
+ * @param {!Int8Array} _src
  * @return {!number}
  */
-function isReadOnly(src) {
+function isReadOnly(_src) {
   return 1;
 }
 
 /**
- * @param {!Int8Array} src
+ * @param {!Int8Array} _src
  * @return {!number}
  */
-function isDirect(src) {
+function isDirect(_src) {
   return 1;
 }
 
 /**
- * @param {!Int8Array} buffer
+ * @param {!Int8Array} _buffer
  * @return {void}
  */
-function flipBuffer(buffer) {
+function flipBuffer(_buffer) {
   /* no-op */
 }
 
