@@ -78,6 +78,7 @@ function log2floor(i) {
   }
   return result + i;
 }
+
 /**
  * @param {number} npostfix
  * @param {number} ndirect
@@ -87,6 +88,7 @@ function log2floor(i) {
 function calculateDistanceAlphabetSize(npostfix, ndirect, maxndistbits) {
   return 16 + ndirect + 2 * (maxndistbits << npostfix);
 }
+
 /**
  * @param {number} maxDistance
  * @param {number} npostfix
@@ -102,6 +104,7 @@ function calculateDistanceAlphabetLimit(maxDistance, npostfix, ndirect) {
   const group = ((ndistbits - 1) << 1) | ((offset >> ndistbits) & 1);
   return ((group - 1) << npostfix) + (1 << npostfix) + ndirect + 16;
 }
+
 /**
  * @param {!State} s
  * @return {number}
@@ -142,6 +145,7 @@ function decodeWindowBits(s) {
   }
   return 17;
 }
+
 /**
  * @param {!State} s
  * @param {!Int8Array} data
@@ -164,6 +168,7 @@ function attachDictionaryChunk(s, data) {
   s.cdTotalSize += data.length;
   s.cdChunkOffsets[s.cdNumChunks] = s.cdTotalSize;
 }
+
 /**
  * @param {!State} s
  * @param {!InputStream} input
@@ -187,6 +192,7 @@ function initState(s, input) {
   initBitReader(s);
   s.runningState = 1;
 }
+
 /**
  * @param {!State} s
  * @return {void}
@@ -204,6 +210,7 @@ function close(s) {
     s.input = null;
   }
 }
+
 /**
  * @param {!State} s
  * @return {number}
@@ -224,6 +231,7 @@ function decodeVarLenUnsignedByte(s) {
   }
   return 0;
 }
+
 /**
  * @param {!State} s
  * @return {void}
@@ -282,6 +290,7 @@ function decodeMetaBlockLength(s) {
     s.isUncompressed = readFewBits(s, 1);
   }
 }
+
 /**
  * @param {!Int32Array} tableGroup
  * @param {number} tableIdx
@@ -304,6 +313,7 @@ function readSymbol(tableGroup, tableIdx, s) {
   s.bitOffset += (tableGroup[offset] >> 16) + 8;
   return tableGroup[offset] & 0xffff;
 }
+
 /**
  * @param {!Int32Array} tableGroup
  * @param {number} tableIdx
@@ -328,6 +338,7 @@ function readBlockLength(tableGroup, tableIdx, s) {
     (n <= 16 ? readFewBits(s, n) : readManyBits(s, n))
   );
 }
+
 /**
  * @param {!Int32Array} v
  * @param {number} index
@@ -340,6 +351,7 @@ function moveToFront(v, index) {
   }
   v[0] = value;
 }
+
 /**
  * @param {!Int8Array} v
  * @param {number} vLen
@@ -358,6 +370,7 @@ function inverseMoveToFrontTransform(v, vLen) {
     }
   }
 }
+
 /**
  * @param {!Int32Array} codeLengthCodeLengths
  * @param {number} numSymbols
@@ -436,6 +449,7 @@ function readHuffmanCodeLengths(
   }
   codeLengths.fill(0, symbol, numSymbols);
 }
+
 /**
  * @param {!Int32Array} symbols
  * @param {number} length
@@ -450,6 +464,7 @@ function checkDupes(symbols, length) {
     }
   }
 }
+
 /**
  * @param {number} alphabetSizeMax
  * @param {number} alphabetSizeLimit
@@ -522,6 +537,7 @@ function readSimpleHuffmanCode(
     alphabetSizeLimit
   );
 }
+
 /**
  * @param {number} alphabetSizeLimit
  * @param {number} skip
@@ -574,6 +590,7 @@ function readComplexHuffmanCode(
     alphabetSizeLimit
   );
 }
+
 /**
  * @param {number} alphabetSizeMax
  * @param {number} alphabetSizeLimit
@@ -616,6 +633,7 @@ function readHuffmanCode(
     );
   }
 }
+
 /**
  * @param {number} contextMapSize
  * @param {!Int8Array} contextMap
@@ -689,6 +707,7 @@ function decodeContextMap(contextMapSize, contextMap, s) {
   }
   return numTrees;
 }
+
 /**
  * @param {!State} s
  * @param {number} treeType
@@ -719,6 +738,7 @@ function decodeBlockTypeAndLength(s, treeType, numBlockTypes) {
   ringBuffers[offset + 1] = blockType;
   return result;
 }
+
 /**
  * @param {!State} s
  * @return {void}
@@ -732,6 +752,7 @@ function decodeLiteralBlockSwitch(s) {
   s.contextLookupOffset1 = contextMode << 9;
   s.contextLookupOffset2 = s.contextLookupOffset1 + 256;
 }
+
 /**
  * @param {!State} s
  * @return {void}
@@ -740,6 +761,7 @@ function decodeCommandBlockSwitch(s) {
   s.commandBlockLength = decodeBlockTypeAndLength(s, 1, s.numCommandBlockTypes);
   s.commandTreeIdx = s.rings[7];
 }
+
 /**
  * @param {!State} s
  * @return {void}
@@ -752,6 +774,7 @@ function decodeDistanceBlockSwitch(s) {
   );
   s.distContextMapSlice = s.rings[9] << 2;
 }
+
 /**
  * @param {!State} s
  * @return {void}
@@ -778,6 +801,7 @@ function maybeReallocateRingBuffer(s) {
   s.ringBuffer = newBuffer;
   s.ringBufferSize = newSize;
 }
+
 /**
  * @param {!State} s
  * @return {void}
@@ -815,6 +839,7 @@ function readNextMetablockHeader(s) {
     maybeReallocateRingBuffer(s);
   }
 }
+
 /**
  * @param {!State} s
  * @param {number} treeType
@@ -848,6 +873,7 @@ function readMetablockPartition(s, treeType, numBlockTypes) {
   s.blockTrees[2 * treeType + 2] = offset;
   return readBlockLength(s.blockTrees, 2 * treeType + 1, s);
 }
+
 /**
  * @param {!State} s
  * @param {number} alphabetSizeLimit
@@ -878,6 +904,7 @@ function calculateDistanceLut(s, alphabetSizeLimit) {
     half = half ^ 1;
   }
 }
+
 /**
  * @param {!State} s
  * @return {void}
@@ -978,6 +1005,7 @@ function readMetablockHuffmanCodesAndContextMaps(s) {
   s.rings[8] = 1;
   s.rings[9] = 0;
 }
+
 /**
  * @param {!State} s
  * @return {void}
@@ -1001,6 +1029,7 @@ function copyUncompressedData(s) {
   reload(s);
   s.runningState = 2;
 }
+
 /**
  * @param {!State} s
  * @return {number}
@@ -1027,6 +1056,7 @@ function writeRingBuffer(s) {
     return 0;
   }
 }
+
 /**
  * @param {number} alphabetSizeMax
  * @param {number} alphabetSizeLimit
@@ -1044,6 +1074,7 @@ function decodeHuffmanTreeGroup(alphabetSizeMax, alphabetSizeLimit, n, s) {
   }
   return group;
 }
+
 /**
  * @param {!State} s
  * @return {number}
@@ -1058,6 +1089,7 @@ function calculateFence(s) {
   }
   return result;
 }
+
 /**
  * @param {!State} s
  * @param {number} fence
@@ -1109,6 +1141,7 @@ function doUseDictionary(s, fence) {
     s.runningState = 4;
   }
 }
+
 /**
  * @param {!State} s
  * @return {void}
@@ -1131,6 +1164,7 @@ function initializeCompoundDictionary(s) {
     cursor += 1 << blockBits;
   }
 }
+
 /**
  * @param {!State} s
  * @param {number} address
@@ -1156,6 +1190,7 @@ function initializeCompoundDictionaryCopy(s, address, length) {
   s.cdBrLength = length;
   s.cdBrCopied = 0;
 }
+
 /**
  * @param {!State} s
  * @param {number} fence
@@ -1196,6 +1231,7 @@ function copyFromCompoundDictionary(s, fence) {
   }
   return pos - origPos;
 }
+
 /**
  * @param {!State} s
  * @return {void}
@@ -1682,6 +1718,7 @@ function getNextKey(key, len) {
   }
   return (key & (step - 1)) + step;
 }
+
 /**
  * @param {!Int32Array} table
  * @param {number} offset
@@ -1696,6 +1733,7 @@ function replicateValue(table, offset, step, end, item) {
     table[offset + end] = item;
   } while (end > 0);
 }
+
 /**
  * @param {!Int32Array} count
  * @param {number} len
@@ -1714,6 +1752,7 @@ function nextTableBitSize(count, len, rootBits) {
   }
   return len - rootBits;
 }
+
 /**
  * @param {!Int32Array} tableGroup
  * @param {number} tableIdx
@@ -1825,6 +1864,7 @@ function doReadMoreInput(s) {
   }
   bytesToNibbles(s, bytesInBuffer);
 }
+
 /**
  * @param {!State} s
  * @param {number} endOfStream
@@ -1842,6 +1882,7 @@ function checkHealth(s, endOfStream) {
     throw new Error("Unused bytes after end");
   }
 }
+
 /**
  * @param {!State} s
  * @param {number} n
@@ -1852,6 +1893,7 @@ function readFewBits(s, n) {
   s.bitOffset += n;
   return val;
 }
+
 /**
  * @param {!State} s
  * @param {number} n
@@ -1864,6 +1906,7 @@ function readManyBits(s, n) {
   s.bitOffset -= 16;
   return low | (readFewBits(s, n - 16) << 16);
 }
+
 /**
  * @param {!State} s
  * @return {void}
@@ -1877,6 +1920,7 @@ function initBitReader(s) {
   s.endOfStreamReached = 0;
   prepare(s);
 }
+
 /**
  * @param {!State} s
  * @return {void}
@@ -1893,6 +1937,7 @@ function prepare(s) {
     (s.shortBuffer[s.halfOffset++] << 16) | (s.accumulator32 >>> 16);
   s.bitOffset -= 16;
 }
+
 /**
  * @param {!State} s
  * @return {void}
@@ -1902,6 +1947,7 @@ function reload(s) {
     prepare(s);
   }
 }
+
 /**
  * @param {!State} s
  * @return {void}
@@ -1915,6 +1961,7 @@ function jumpToByteBoundary(s) {
     }
   }
 }
+
 /**
  * @param {!State} s
  * @return {number}
@@ -1926,6 +1973,7 @@ function halfAvailable(s) {
   }
   return limit - s.halfOffset;
 }
+
 /**
  * @param {!State} s
  * @param {!Int8Array} data
@@ -1980,6 +2028,7 @@ function copyRawBytes(s, data, offset, length) {
     length -= len;
   }
 }
+
 /**
  * @param {!State} s
  * @param {number} byteLen
@@ -2256,8 +2305,8 @@ function copyBytes(dst, target, src, start, end) {
  */
 function readInput(src, dst, offset, length) {
   if (src == null) return -1;
-  const /** number */ end = min(src.offset + length, src.data.length);
-  const /** number */ bytesRead = end - src.offset;
+  const end = min(src.offset + length, src.data.length);
+  const bytesRead = end - src.offset;
   dst.set(src.data.subarray(src.offset, end), offset);
   src.offset += bytesRead;
   return bytesRead;
@@ -2277,16 +2326,16 @@ function closeInput(_src) {
  * @return {!Int8Array}
  */
 function decode(bytes, options) {
-  const /** !State */ s = new State();
+  const s = new State();
   initState(s, new InputStream(bytes));
   if (options) {
     const customDictionary = options["customDictionary"];
     if (customDictionary) attachDictionaryChunk(s, customDictionary);
   }
-  let /** !number */ totalOutput = 0;
-  const /** !Array<!Int8Array> */ chunks = [];
+  let totalOutput = 0;
+  const /** @type {!Array<!Int8Array>} */ chunks = [];
   while (true) {
-    const /** !Int8Array */ chunk = new Int8Array(16384);
+    const chunk = new Int8Array(16384);
     chunks.push(chunk);
     s.output = chunk;
     s.outputOffset = 0;
@@ -2297,12 +2346,12 @@ function decode(bytes, options) {
     if (s.outputUsed < 16384) break;
   }
   close(s);
-  const /** !Int8Array */ result = new Int8Array(totalOutput);
-  let /** !number */ offset = 0;
-  for (let /** !number */ i = 0; i < chunks.length; ++i) {
-    const /** !Int8Array */ chunk = chunks[i];
-    const /** !number */ end = min(totalOutput, offset + 16384);
-    const /** !number */ len = end - offset;
+  const result = new Int8Array(totalOutput);
+  let offset = 0;
+  for (let i = 0; i < chunks.length; ++i) {
+    const chunk = chunks[i];
+    const end = min(totalOutput, offset + 16384);
+    const len = end - offset;
     if (len < 16384) {
       result.set(chunk.subarray(0, len), offset);
     } else {
