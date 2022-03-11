@@ -6,6 +6,7 @@
 
 import {data, offsets, sizeBits} from "./dictionary.js";
 import {CMD_LOOKUP} from "./commands.js";
+import {RFC_TRANSFORMS} from "./transforms.js";
 
 /**
  * @typedef {Object} Options
@@ -1122,7 +1123,7 @@ function doUseDictionary(s, fence) {
     let /** @type{number} */ wordIdx = address & mask;
     let /** @type{number} */ transformIdx = address >>> shift;
     offset += wordIdx * wordLength;
-    let /** @type{!Transforms} */ transforms = RFC_TRANSFORMS;
+    let transforms = RFC_TRANSFORMS;
     if (transformIdx >= transforms.numTransforms) {
       throw new Error("Invalid backward reference");
     }
@@ -1562,78 +1563,12 @@ function decompress(s) {
 }
 
 /**
- * @constructor
- * @param {number} numTransforms
- * @param {number} prefixSuffixLen
- * @param {number} prefixSuffixCount
- * @struct
- */
-function Transforms(numTransforms, prefixSuffixLen, prefixSuffixCount) {
-  /** @type {!number} */
-  this.numTransforms = 0;
-  /** @type {!Int32Array} */
-  this.triplets = new Int32Array(0);
-  /** @type {!Int8Array} */
-  this.prefixSuffixStorage = new Int8Array(0);
-  /** @type {!Int32Array} */
-  this.prefixSuffixHeads = new Int32Array(0);
-  /** @type {!Int16Array} */
-  this.params = new Int16Array(0);
-  this.numTransforms = numTransforms;
-  this.triplets = new Int32Array(numTransforms * 3);
-  this.params = new Int16Array(numTransforms);
-  this.prefixSuffixStorage = new Int8Array(prefixSuffixLen);
-  this.prefixSuffixHeads = new Int32Array(prefixSuffixCount + 1);
-}
-
-/** @type {!Transforms} */
-let RFC_TRANSFORMS = new Transforms(121, 167, 50);
-/**
- * @param {!Int8Array} prefixSuffix
- * @param {!Int32Array} prefixSuffixHeads
- * @param {!Int32Array} transforms
- * @param {!string} prefixSuffixSrc
- * @param {!string} transformsSrc
- * @return {void}
- */
-function unpackTransforms(
-  prefixSuffix,
-  prefixSuffixHeads,
-  transforms,
-  prefixSuffixSrc,
-  transformsSrc
-) {
-  let /** @type{number} */ n = prefixSuffixSrc.length;
-  let /** @type{number} */ index = 1;
-  let /** @type{number} */ j = 0;
-  for (let /** @type{number} */ i = 0; i < n; ++i) {
-    let /** @type{number} */ c = prefixSuffixSrc.charCodeAt(i);
-    if (c == 35) {
-      prefixSuffixHeads[index++] = j;
-    } else {
-      prefixSuffix[j++] = c;
-    }
-  }
-  for (let /** @type{number} */ i = 0; i < 363; ++i) {
-    transforms[i] = transformsSrc.charCodeAt(i) - 32;
-  }
-}
-{
-  unpackTransforms(
-    RFC_TRANSFORMS.prefixSuffixStorage,
-    RFC_TRANSFORMS.prefixSuffixHeads,
-    RFC_TRANSFORMS.triplets,
-    '# #s #, #e #.# the #.com/#\xC2\xA0# of # and # in # to #"#">#\n#]# for # a # that #. # with #\'# from # by #. The # on # as # is #ing #\n\t#:#ed #(# at #ly #="# of the #. This #,# not #er #al #=\'#ful #ive #less #est #ize #ous #',
-    "     !! ! ,  *!  &!  \" !  ) *   * -  ! # !  #!*!  +  ,$ !  -  %  .  / #   0  1 .  \"   2  3!*   4%  ! # /   5  6  7  8 0  1 &   $   9 +   :  ;  < '  !=  >  ?! 4  @ 4  2  &   A *# (   B  C& ) %  ) !*# *-% A +! *.  D! %'  & E *6  F  G% ! *A *%  H! D  I!+!  J!+   K +- *4! A  L!*4  M  N +6  O!*% +.! K *G  P +%(  ! G *D +D  Q +# *K!*G!+D!+# +G +A +4!+% +K!+4!*D!+K!*K"
-  );
-}
-/**
  * @param {!Int8Array} dst
  * @param {number} dstOffset
  * @param {!Int8Array} src
  * @param {number} srcOffset
  * @param {number} len
- * @param {!Transforms} transforms
+ * @param {!import('./transforms').Transforms} transforms
  * @param {number} transformIndex
  * @return {number}
  */
