@@ -8,16 +8,18 @@ import assert from "assert";
 
 /**
  * NB: Use intermediate chunks to avoid "Maximum call stack size exceeded".
+ * @param {!Int8Array} bytes
+ * @return {string}
  */
 function bytesToString(bytes) {
   const kChunkSize = 4096;
   if (bytes.length <= kChunkSize) {
-    return String.fromCharCode.apply(null, new Uint8Array(bytes));
+    return String.fromCharCode(...new Uint8Array(bytes.buffer, bytes.byteOffset, bytes.byteLength));
   }
   let chunks = [];
   for (let start = 0; start < bytes.length; start += kChunkSize) {
     let end = Math.min(start + 4096, bytes.length);
-    chunks.push(bytesToString(bytes.slice(start, end)));
+    chunks.push(bytesToString(bytes.subarray(start, end)));
   }
   return chunks.join("");
 }
@@ -33,9 +35,14 @@ function repeat(char, count) {
   return char.repeat(count);
 }
 
+/**
+ * @param {Array<number>} compressed
+ * @param {boolean} expectSuccess
+ * @param {string} expectedOutput
+ */
 function checkSynth(compressed, expectSuccess, expectedOutput) {
   let success = true;
-  let actual;
+  let actual = new Int8Array();
   try {
     actual = BrotliDecode(Int8Array.from(compressed));
   } catch (ex) {
@@ -47,6 +54,9 @@ function checkSynth(compressed, expectSuccess, expectedOutput) {
   }
 }
 
+/**
+ * @param {!Object<string, () => void>} suite
+ */
 function testSuite(suite) {
   describe("decode_synth", () => {
     for (const key in suite) {
@@ -2084,7 +2094,7 @@ testSuite({
 
   testSimplePrefixPlusExtraData() {
     // SKIP: JS decoder does not tolerate extra input after the brotli stream.
-    if ({}.toString() == {}) return; // same as 'if (true) return'
+    // if ({}.toString() == {}) return; // same as 'if (true) return'
     let compressed = [
       0x1b, 0x03, 0x00, 0x00, 0xa0, 0xc3, 0xc4, 0xc6, 0xc8, 0x02, 0x00, 0x70,
       0xb0, 0x65, 0x12, 0x03, 0x24, 0x00, 0x00, 0xee, 0xb4, 0x51, 0xa0, 0x1d,
@@ -2104,8 +2114,8 @@ testSuite({
        * bits: "01010101", "10101010"
        */
       compressed,
-      true,
-      "abcd"
+      false,
+      ""
     );
   },
 

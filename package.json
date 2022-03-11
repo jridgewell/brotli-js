@@ -7,10 +7,14 @@
     "decode.js"
   ],
   "scripts": {
-    "test": "mocha",
+    "test": "run-s test:ts test:prettier test:only",
+    "test:only": "mocha",
+    "test:ts": "tsc --noEmit",
+    "test:prettier": "prettier --check src test",
+    "test:watch": "mocha --watch --parallel",
     "lint": "run-s lint:*",
     "lint:prettier": "prettier --write src test",
-    "lint:typescript": "tsc --noEmit"
+    "lint:ts": "tsc --noEmit"
   },
   "devDependencies": {
     "@types/mocha": "9.1.0",
