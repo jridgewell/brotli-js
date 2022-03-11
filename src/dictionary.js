@@ -44,7 +44,7 @@ function flipBuffer(_buffer) {
  * @return {!Int8Array}
  */
 function toUsAsciiBytes(src) {
-  const  result = new Int8Array(src.length);
+  const result = new Int8Array(src.length);
   for (let i = 0; i < src.length; ++i) {
     result[i] = src.charCodeAt(i);
   }

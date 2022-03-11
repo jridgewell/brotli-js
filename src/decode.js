@@ -10,12 +10,6 @@ import { RFC_TRANSFORMS } from "./transforms.js";
 import { LOOKUP } from "./lookup.js";
 
 /**
- * @typedef {Object} OptionsType
- * @property {?Int8Array} customDictionary
- */
-let OptionsType;
-
-/**
  * @constructor
  * @param {!Int8Array} bytes
  * @struct
@@ -144,29 +138,6 @@ function decodeWindowBits(s) {
     }
   }
   return 17;
-}
-
-/**
- * @param {!State} s
- * @param {!Int8Array} data
- * @return {void}
- */
-function attachDictionaryChunk(s, data) {
-  if (s.runningState != 1) {
-    throw new Error("State MUST be freshly initialized");
-  }
-  if (s.cdNumChunks == 0) {
-    s.cdChunks = new Array(16);
-    s.cdChunkOffsets = new Int32Array(16);
-    s.cdBlockBits = -1;
-  }
-  if (s.cdNumChunks == 15) {
-    throw new Error("Too many dictionary chunks");
-  }
-  s.cdChunks[s.cdNumChunks] = data;
-  s.cdNumChunks++;
-  s.cdTotalSize += data.length;
-  s.cdChunkOffsets[s.cdNumChunks] = s.cdTotalSize;
 }
 
 /**
@@ -1099,137 +1070,42 @@ function doUseDictionary(s, fence) {
   if (s.distance > 0x7ffffffc) {
     throw new Error("Invalid backward reference");
   }
-  const address = s.distance - s.maxDistance - 1 - s.cdTotalSize;
-  if (address < 0) {
-    initializeCompoundDictionaryCopy(s, -address - 1, s.copyLength);
-    s.runningState = 14;
-  } else {
-    const dictionaryData = data;
-    const wordLength = s.copyLength;
-    if (wordLength > 31) {
-      throw new Error("Invalid backward reference");
-    }
-    const shift = sizeBits[wordLength];
-    if (shift == 0) {
-      throw new Error("Invalid backward reference");
-    }
-    let offset = offsets[wordLength];
-    const mask = (1 << shift) - 1;
-    const wordIdx = address & mask;
-    const transformIdx = address >>> shift;
-    offset += wordIdx * wordLength;
-    const transforms = RFC_TRANSFORMS;
-    if (transformIdx >= transforms.numTransforms) {
-      throw new Error("Invalid backward reference");
-    }
-    const len = transformDictionaryWord(
-      s.ringBuffer,
-      s.pos,
-      dictionaryData,
-      offset,
-      wordLength,
-      transforms,
-      transformIdx
-    );
-    s.pos += len;
-    s.metaBlockLength -= len;
-    if (s.pos >= fence) {
-      s.nextRunningState = 4;
-      s.runningState = 12;
-      return;
-    }
-    s.runningState = 4;
-  }
-}
-
-/**
- * @param {!State} s
- * @return {void}
- */
-function initializeCompoundDictionary(s) {
-  s.cdBlockMap = new Int8Array(256);
-  let blockBits = 8;
-  while ((s.cdTotalSize - 1) >>> blockBits != 0) {
-    blockBits++;
-  }
-  blockBits -= 8;
-  s.cdBlockBits = blockBits;
-  let cursor = 0;
-  let index = 0;
-  while (cursor < s.cdTotalSize) {
-    while (s.cdChunkOffsets[index + 1] < cursor) {
-      index++;
-    }
-    s.cdBlockMap[cursor >>> blockBits] = index;
-    cursor += 1 << blockBits;
-  }
-}
-
-/**
- * @param {!State} s
- * @param {number} address
- * @param {number} length
- * @return {void}
- */
-function initializeCompoundDictionaryCopy(s, address, length) {
-  if (s.cdBlockBits == -1) {
-    initializeCompoundDictionary(s);
-  }
-  let index = s.cdBlockMap[address >>> s.cdBlockBits];
-  while (address >= s.cdChunkOffsets[index + 1]) {
-    index++;
-  }
-  if (s.cdTotalSize > address + length) {
+  const address = s.distance - s.maxDistance - 1;
+  const dictionaryData = data;
+  const wordLength = s.copyLength;
+  if (wordLength > 31) {
     throw new Error("Invalid backward reference");
   }
-  s.distRbIdx = (s.distRbIdx + 1) & 0x3;
-  s.rings[s.distRbIdx] = s.distance;
-  s.metaBlockLength -= length;
-  s.cdBrIndex = index;
-  s.cdBrOffset = address - s.cdChunkOffsets[index];
-  s.cdBrLength = length;
-  s.cdBrCopied = 0;
-}
-
-/**
- * @param {!State} s
- * @param {number} fence
- * @return {number}
- */
-function copyFromCompoundDictionary(s, fence) {
-  let pos = s.pos;
-  const origPos = pos;
-  while (s.cdBrLength != s.cdBrCopied) {
-    const space = fence - pos;
-    const chunkLength =
-      s.cdChunkOffsets[s.cdBrIndex + 1] - s.cdChunkOffsets[s.cdBrIndex];
-    const remChunkLength = chunkLength - s.cdBrOffset;
-    let length = s.cdBrLength - s.cdBrCopied;
-    if (length > remChunkLength) {
-      length = remChunkLength;
-    }
-    if (length > space) {
-      length = space;
-    }
-    copyBytes(
-      s.ringBuffer,
-      pos,
-      s.cdChunks[s.cdBrIndex],
-      s.cdBrOffset,
-      s.cdBrOffset + length
-    );
-    pos += length;
-    s.cdBrOffset += length;
-    s.cdBrCopied += length;
-    if (length == remChunkLength) {
-      s.cdBrIndex++;
-      s.cdBrOffset = 0;
-    }
-    if (pos >= fence) {
-      break;
-    }
+  const shift = sizeBits[wordLength];
+  if (shift == 0) {
+    throw new Error("Invalid backward reference");
   }
-  return pos - origPos;
+  let offset = offsets[wordLength];
+  const mask = (1 << shift) - 1;
+  const wordIdx = address & mask;
+  const transformIdx = address >>> shift;
+  offset += wordIdx * wordLength;
+  const transforms = RFC_TRANSFORMS;
+  if (transformIdx >= transforms.numTransforms) {
+    throw new Error("Invalid backward reference");
+  }
+  const len = transformDictionaryWord(
+    s.ringBuffer,
+    s.pos,
+    dictionaryData,
+    offset,
+    wordLength,
+    transforms,
+    transformIdx
+  );
+  s.pos += len;
+  s.metaBlockLength -= len;
+  if (s.pos >= fence) {
+    s.nextRunningState = 4;
+    s.runningState = 12;
+    return;
+  }
+  s.runningState = 4;
 }
 
 /**
@@ -1503,15 +1379,6 @@ function decompress(s) {
       }
       case 9:
         doUseDictionary(s, fence);
-        continue;
-      case 14:
-        s.pos += copyFromCompoundDictionary(s, fence);
-        if (s.pos >= fence) {
-          s.nextRunningState = 14;
-          s.runningState = 12;
-          return;
-        }
-        s.runningState = 4;
         continue;
       case 5:
         while (s.metaBlockLength > 0) {
@@ -2229,36 +2096,6 @@ function State() {
   /** @type {!number} */
   this.isLargeWindow = 0;
 
-  /** @type {!number} */
-  this.cdNumChunks = 0;
-
-  /** @type {!number} */
-  this.cdTotalSize = 0;
-
-  /** @type {!number} */
-  this.cdBrIndex = 0;
-
-  /** @type {!number} */
-  this.cdBrOffset = 0;
-
-  /** @type {!number} */
-  this.cdBrLength = 0;
-
-  /** @type {!number} */
-  this.cdBrCopied = 0;
-
-  /** @type {!Array<!Int8Array>} */
-  this.cdChunks = new Array(0);
-
-  /** @type {!Int32Array} */
-  this.cdChunkOffsets = new Int32Array(0);
-
-  /** @type {!number} */
-  this.cdBlockBits = 0;
-
-  /** @type {!Int8Array} */
-  this.cdBlockMap = new Int8Array(0);
-
   /** @type {!InputStream|null} */
   this.input = null;
 
@@ -2282,18 +2119,6 @@ function State() {
  */
 function min(a, b) {
   return a <= b ? a : b;
-}
-
-/**
- * @param {!Int8Array} dst
- * @param {!number} target
- * @param {!Int8Array} src
- * @param {!number} start
- * @param {!number} end
- * @return {void}
- */
-function copyBytes(dst, target, src, start, end) {
-  dst.set(src.subarray(start, end), target);
 }
 
 /**
@@ -2322,16 +2147,11 @@ function closeInput(_src) {
 
 /**
  * @param {!Int8Array} bytes
- * @param {OptionsType=} options
  * @return {!Int8Array}
  */
-function decode(bytes, options) {
+function decode(bytes) {
   const s = new State();
   initState(s, new InputStream(bytes));
-  if (options) {
-    const customDictionary = options["customDictionary"];
-    if (customDictionary) attachDictionaryChunk(s, customDictionary);
-  }
   let totalOutput = 0;
   const /** @type {!Array<!Int8Array>} */ chunks = [];
   while (true) {
