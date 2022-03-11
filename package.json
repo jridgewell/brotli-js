@@ -2,10 +2,8 @@
   "name": "brotli",
   "type": "module",
   "description": "Pure JavaScript Brotli implementation",
-  "main": "decode.js",
-  "files": [
-    "decode.js"
-  ],
+  "main": "src/decode.js",
+  "files": ["src"],
   "scripts": {
     "test": "run-s test:ts test:prettier test:only",
     "test:only": "mocha",
