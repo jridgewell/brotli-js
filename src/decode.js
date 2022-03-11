@@ -2293,7 +2293,7 @@ function min(a, b) {
  * @return {void}
  */
 function copyBytes(dst, target, src, start, end) {
-  dst.set(src.slice(start, end), target);
+  dst.set(src.subarray(start, end), target);
 }
 
 /**
