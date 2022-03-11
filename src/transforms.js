@@ -9,34 +9,19 @@ export const RFC_TRANSFORMS = new Transforms(121, 167, 50);
  */
 export function Transforms(numTransforms, prefixSuffixLen, prefixSuffixCount) {
   /** @type {!number} */
-  this.numTransforms = 0;
-
-  /** @type {!Int32Array} */
-  this.triplets = new Int32Array(0);
-
-  /** @type {!Int8Array} */
-  this.prefixSuffixStorage = new Int8Array(0);
-
-  /** @type {!Int32Array} */
-  this.prefixSuffixHeads = new Int32Array(0);
-
-  /** @type {!Int16Array} */
-  this.params = new Int16Array(0);
-
-  /** @type {number} */
   this.numTransforms = numTransforms;
 
   /** @type {!Int32Array} */
   this.triplets = new Int32Array(numTransforms * 3);
-
-  /** @type {!Int16Array} */
-  this.params = new Int16Array(numTransforms);
 
   /** @type {!Int8Array} */
   this.prefixSuffixStorage = new Int8Array(prefixSuffixLen);
 
   /** @type {!Int32Array} */
   this.prefixSuffixHeads = new Int32Array(prefixSuffixCount + 1);
+
+  /** @type {!Int16Array} */
+  this.params = new Int16Array(numTransforms);
 }
 
 /**
@@ -54,10 +39,9 @@ function unpackTransforms(
   prefixSuffixSrc,
   transformsSrc
 ) {
-  const n = prefixSuffixSrc.length;
   let index = 1;
   let j = 0;
-  for (let i = 0; i < n; ++i) {
+  for (let i = 0; i < prefixSuffixSrc.length; ++i) {
     const c = prefixSuffixSrc.charCodeAt(i);
     if (c == 35) {
       prefixSuffixHeads[index++] = j;
@@ -65,7 +49,7 @@ function unpackTransforms(
       prefixSuffix[j++] = c;
     }
   }
-  for (let i = 0; i < 363; ++i) {
+  for (let i = 0; i < transformsSrc.length; ++i) {
     transforms[i] = transformsSrc.charCodeAt(i) - 32;
   }
 }

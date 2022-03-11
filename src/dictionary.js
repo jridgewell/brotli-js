@@ -44,9 +44,8 @@ function flipBuffer(_buffer) {
  * @return {!Int8Array}
  */
 function toUsAsciiBytes(src) {
-  const /** !number */ n = src.length;
-  const /** !Int8Array */ result = new Int8Array(n);
-  for (let /** !number */ i = 0; i < n; ++i) {
+  const  result = new Int8Array(src.length);
+  for (let i = 0; i < src.length; ++i) {
     result[i] = src.charCodeAt(i);
   }
   return result;
@@ -71,7 +70,7 @@ function setData(newData, newSizeBits) {
   }
   const dictionaryOffsets = offsets;
   const dictionarySizeBits = sizeBits;
-  dictionarySizeBits.set(newSizeBits.subarray(0, 0 + newSizeBits.length), 0);
+  dictionarySizeBits.set(newSizeBits);
   let pos = 0;
   const limit = newData.length;
   for (let i = 0; i < newSizeBits.length; ++i) {
@@ -118,8 +117,7 @@ function unpackDictionaryData(
     throw new Error("Corrupted brotli dictionary");
   }
   let offset = 0;
-  const n = skipFlip.length;
-  for (let i = 0; i < n; i += 2) {
+  for (let i = 0; i < skipFlip.length; i += 2) {
     const skip = skipFlip.charCodeAt(i) - 36;
     const flip = skipFlip.charCodeAt(i + 1) - 36;
     for (let j = 0; j < skip; ++j) {
