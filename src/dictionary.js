@@ -8,38 +8,6 @@ export const offsets = new Int32Array(32);
 export const sizeBits = new Int32Array(32);
 
 /**
- * @param {!Int8Array} src
- * @return {!Int8Array}
- */
-function asReadOnlyBuffer(src) {
-  return src;
-}
-
-/**
- * @param {!Int8Array} _src
- * @return {!number}
- */
-function isReadOnly(_src) {
-  return 1;
-}
-
-/**
- * @param {!Int8Array} _src
- * @return {!number}
- */
-function isDirect(_src) {
-  return 1;
-}
-
-/**
- * @param {!Int8Array} _buffer
- * @return {void}
- */
-function flipBuffer(_buffer) {
-  /* no-op */
-}
-
-/**
  * @param {!string} src
  * @return {!Int8Array}
  */
@@ -57,9 +25,6 @@ function toUsAsciiBytes(src) {
  * @return {void}
  */
 function setData(newData, newSizeBits) {
-  if (isDirect(newData) == 0 || isReadOnly(newData) == 0) {
-    throw new Error("newData must be a direct read-only byte buffer");
-  }
   if (newSizeBits.length > 31) {
     throw new Error("sizeBits length must be at most " + 31);
   }
@@ -145,5 +110,4 @@ unpackDictionaryData(
   dictionarySizeBits,
   "AAAAKKLLKKKKKJJIHHIHHGGFF"
 );
-flipBuffer(dictionaryData);
-setData(asReadOnlyBuffer(dictionaryData), dictionarySizeBits);
+setData(dictionaryData, dictionarySizeBits);

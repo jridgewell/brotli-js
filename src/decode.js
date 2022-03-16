@@ -137,9 +137,6 @@ function decodeWindowBits(s) {
  * @return {void}
  */
 function initState(s, input) {
-  if (s.runningState != RunningState.UNINITIALIZED) {
-    throw new Error("State MUST be uninitialized");
-  }
   s.blockTrees = new Int32Array(3091);
   s.blockTrees[0] = 7;
   s.distRbIdx = 3;
@@ -153,24 +150,6 @@ function initState(s, input) {
   s.input = input;
   initBitReader(s);
   s.runningState = RunningState.INITIALIZED;
-}
-
-/**
- * @param {!State} s
- * @return {void}
- */
-function close(s) {
-  if (s.runningState == RunningState.UNINITIALIZED) {
-    throw new Error("State MUST be initialized");
-  }
-  if (s.runningState == RunningState.CLOSED) {
-    return;
-  }
-  s.runningState = RunningState.CLOSED;
-  if (s.input != null) {
-    closeInput(s.input);
-    s.input = null;
-  }
 }
 
 /**
@@ -1104,12 +1083,6 @@ function doUseDictionary(s, fence) {
  * @return {void}
  */
 function decompress(s) {
-  if (s.runningState == RunningState.UNINITIALIZED) {
-    throw new Error("Can't decompress until initialized");
-  }
-  if (s.runningState == RunningState.CLOSED) {
-    throw new Error("Can't decompress after close");
-  }
   if (s.runningState == RunningState.INITIALIZED) {
     const windowBits = decodeWindowBits(s);
     if (windowBits == -1) {
@@ -1119,6 +1092,7 @@ function decompress(s) {
     s.maxBackwardDistance = s.maxRingBufferSize - 16;
     s.runningState = RunningState.BLOCK_START;
   }
+
   let fence = calculateFence(s);
   let ringBufferMask = s.ringBufferSize - 1;
   let ringBuffer = s.ringBuffer;
@@ -1410,7 +1384,7 @@ function decompress(s) {
         s.runningState = s.nextRunningState;
         continue;
       default:
-        throw new Error("Unexpected state " + s.runningState);
+        throw new Error("Unexpected state " + String(s.runningState));
     }
   }
   if (s.runningState == RunningState.FINISHED) {
@@ -1904,7 +1878,6 @@ function bytesToNibbles(s, byteLen) {
 
 /** @enum {Symbol} */
 const RunningState = {
-  UNINITIALIZED: Symbol(0),
   INITIALIZED: Symbol(1),
   BLOCK_START: Symbol(2),
   COMPRESSED_BLOCK_START: Symbol(3),
@@ -1915,10 +1888,8 @@ const RunningState = {
   COPY_LOOP: Symbol(8),
   USE_DICTIONARY: Symbol(9),
   FINISHED: Symbol(10),
-  CLOSED: Symbol(11),
   INIT_WRITE: Symbol(12),
   WRITE: Symbol(13),
-  COPY_FROM_COMPOUND_DICTIONARY: Symbol(14),
 };
 
 /**
@@ -1972,10 +1943,10 @@ function State() {
   this.distOffset = new Int32Array(0);
 
   /** @type {RunningState} */
-  this.runningState = RunningState.UNINITIALIZED;
+  this.runningState = RunningState.INITIALIZED;
 
   /** @type {RunningState} */
-  this.nextRunningState = RunningState.UNINITIALIZED;
+  this.nextRunningState = RunningState.INITIALIZED;
 
   /** @type {!number} */
   this.accumulator32 = 0;
@@ -2148,20 +2119,13 @@ function readInput(src, dst, offset, length) {
 }
 
 /**
- * @param {!InputStream} _src
- * @return {!number}
- */
-function closeInput(_src) {
-  return 0;
-}
-
-/**
  * @param {!Uint8Array} bytes
  * @return {!Uint8Array}
  */
 function decode(bytes) {
   const s = new State();
   initState(s, new InputStream(bytes));
+
   let totalOutput = 0;
   const /** @type {!Array<!Int8Array>} */ chunks = [];
   while (true) {
@@ -2175,7 +2139,7 @@ function decode(bytes) {
     totalOutput += s.outputUsed;
     if (s.outputUsed < 16384) break;
   }
-  close(s);
+
   const result = new Uint8Array(totalOutput);
   let offset = 0;
   for (let i = 0; i < chunks.length; ++i) {
