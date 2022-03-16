@@ -61,16 +61,7 @@ const BLOCK_LENGTH_N_BITS = Int32Array.from([
  * @return {number}
  */
 function log2floor(i) {
-  let result = -1;
-  let step = 16;
-  while (step > 0) {
-    if (i >>> step != 0) {
-      result += step;
-      i = i >>> step;
-    }
-    step = step >> 1;
-  }
-  return result + i;
+  return Math.floor(Math.log2(i));
 }
 
 /**
