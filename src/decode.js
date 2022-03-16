@@ -146,7 +146,7 @@ function decodeWindowBits(s) {
  * @return {void}
  */
 function initState(s, input) {
-  if (s.runningState != 0) {
+  if (s.runningState != RunningState.UNINITIALIZED) {
     throw new Error("State MUST be uninitialized");
   }
   s.blockTrees = new Int32Array(3091);
@@ -161,7 +161,7 @@ function initState(s, input) {
   s.distOffset = new Int32Array(maxDistanceAlphabetLimit);
   s.input = input;
   initBitReader(s);
-  s.runningState = 1;
+  s.runningState = RunningState.INITIALIZED;
 }
 
 /**
@@ -169,13 +169,13 @@ function initState(s, input) {
  * @return {void}
  */
 function close(s) {
-  if (s.runningState == 0) {
+  if (s.runningState == RunningState.UNINITIALIZED) {
     throw new Error("State MUST be initialized");
   }
-  if (s.runningState == 11) {
+  if (s.runningState == RunningState.CLOSED) {
     return;
   }
-  s.runningState = 11;
+  s.runningState = RunningState.CLOSED;
   if (s.input != null) {
     closeInput(s.input);
     s.input = null;
@@ -779,8 +779,8 @@ function maybeReallocateRingBuffer(s) {
  */
 function readNextMetablockHeader(s) {
   if (s.inputEnd != 0) {
-    s.nextRunningState = 10;
-    s.runningState = 12;
+    s.nextRunningState = RunningState.FINISHED;
+    s.runningState = RunningState.INIT_WRITE;
     return;
   }
   s.literalTreeGroup = new Int32Array(0);
@@ -795,9 +795,9 @@ function readNextMetablockHeader(s) {
   }
   if (s.isUncompressed != 0 || s.isMetadata != 0) {
     jumpToByteBoundary(s);
-    s.runningState = s.isMetadata != 0 ? 5 : 6;
+    s.runningState = s.isMetadata != 0 ? RunningState.READ_METADATA : RunningState.COPY_UNCOMPRESSED;
   } else {
-    s.runningState = 3;
+    s.runningState = RunningState.COMPRESSED_BLOCK_START;
   }
   if (s.isMetadata != 0) {
     return;
@@ -985,7 +985,7 @@ function copyUncompressedData(s) {
   const ringBuffer = s.ringBuffer;
   if (s.metaBlockLength <= 0) {
     reload(s);
-    s.runningState = 2;
+    s.runningState = RunningState.BLOCK_START;
     return;
   }
   const chunkLength = min(s.ringBufferSize - s.pos, s.metaBlockLength);
@@ -993,12 +993,12 @@ function copyUncompressedData(s) {
   s.metaBlockLength -= chunkLength;
   s.pos += chunkLength;
   if (s.pos == s.ringBufferSize) {
-    s.nextRunningState = 6;
-    s.runningState = 12;
+    s.nextRunningState = RunningState.COPY_UNCOMPRESSED;
+    s.runningState = RunningState.INIT_WRITE;
     return;
   }
   reload(s);
-  s.runningState = 2;
+  s.runningState = RunningState.BLOCK_START;
 }
 
 /**
@@ -1101,11 +1101,11 @@ function doUseDictionary(s, fence) {
   s.pos += len;
   s.metaBlockLength -= len;
   if (s.pos >= fence) {
-    s.nextRunningState = 4;
-    s.runningState = 12;
+    s.nextRunningState = RunningState.MAIN_LOOP;
+    s.runningState = RunningState.INIT_WRITE;
     return;
   }
-  s.runningState = 4;
+  s.runningState = RunningState.MAIN_LOOP;
 }
 
 /**
@@ -1113,27 +1113,27 @@ function doUseDictionary(s, fence) {
  * @return {void}
  */
 function decompress(s) {
-  if (s.runningState == 0) {
+  if (s.runningState == RunningState.UNINITIALIZED) {
     throw new Error("Can't decompress until initialized");
   }
-  if (s.runningState == 11) {
+  if (s.runningState == RunningState.CLOSED) {
     throw new Error("Can't decompress after close");
   }
-  if (s.runningState == 1) {
+  if (s.runningState == RunningState.INITIALIZED) {
     const windowBits = decodeWindowBits(s);
     if (windowBits == -1) {
       throw new Error("Invalid 'windowBits' code");
     }
     s.maxRingBufferSize = 1 << windowBits;
     s.maxBackwardDistance = s.maxRingBufferSize - 16;
-    s.runningState = 2;
+    s.runningState = RunningState.BLOCK_START;
   }
   let fence = calculateFence(s);
   let ringBufferMask = s.ringBufferSize - 1;
   let ringBuffer = s.ringBuffer;
-  while (s.runningState != 10) {
+  while (s.runningState != RunningState.FINISHED) {
     switch (s.runningState) {
-      case 2:
+      case RunningState.BLOCK_START:
         if (s.metaBlockLength < 0) {
           throw new Error("Invalid metablock length");
         }
@@ -1142,13 +1142,13 @@ function decompress(s) {
         ringBufferMask = s.ringBufferSize - 1;
         ringBuffer = s.ringBuffer;
         continue;
-      case 3:
+      case RunningState.COMPRESSED_BLOCK_START:
         readMetablockHuffmanCodesAndContextMaps(s);
-        s.runningState = 4;
+        s.runningState = RunningState.MAIN_LOOP;
       // fall through
-      case 4: {
+      case RunningState.MAIN_LOOP: {
         if (s.metaBlockLength <= 0) {
-          s.runningState = 2;
+          s.runningState = RunningState.BLOCK_START;
           continue;
         }
         if (s.halfOffset > 2030) {
@@ -1192,10 +1192,10 @@ function decompress(s) {
             ? readFewBits(s, copyLengthExtraBits)
             : readManyBits(s, copyLengthExtraBits));
         s.j = 0;
-        s.runningState = 7;
+        s.runningState = RunningState.INSERT_LOOP;
         // fall through
       }
-      case 7: {
+      case RunningState.INSERT_LOOP: {
         if (s.trivialLiteralContext != 0) {
           while (s.j < s.insertLength) {
             if (s.halfOffset > 2030) {
@@ -1219,8 +1219,8 @@ function decompress(s) {
             s.pos++;
             s.j++;
             if (s.pos >= fence) {
-              s.nextRunningState = 7;
-              s.runningState = 12;
+              s.nextRunningState = RunningState.INSERT_LOOP;
+              s.runningState = RunningState.INIT_WRITE;
               break;
             }
           }
@@ -1252,18 +1252,18 @@ function decompress(s) {
             s.pos++;
             s.j++;
             if (s.pos >= fence) {
-              s.nextRunningState = 7;
-              s.runningState = 12;
+              s.nextRunningState = RunningState.INSERT_LOOP;
+              s.runningState = RunningState.INIT_WRITE;
               break;
             }
           }
         }
-        if (s.runningState != 7) {
+        if (s.runningState != RunningState.INSERT_LOOP) {
           continue;
         }
         s.metaBlockLength -= s.insertLength;
         if (s.metaBlockLength <= 0) {
-          s.runningState = 4;
+          s.runningState = RunningState.MAIN_LOOP;
           continue;
         }
         let distanceCode = s.distanceCode;
@@ -1324,7 +1324,7 @@ function decompress(s) {
           s.maxDistance = s.maxBackwardDistance;
         }
         if (s.distance > s.maxDistance) {
-          s.runningState = 9;
+          s.runningState = RunningState.USE_DICTIONARY;
           continue;
         }
         if (distanceCode > 0) {
@@ -1335,10 +1335,10 @@ function decompress(s) {
           throw new Error("Invalid backward reference");
         }
         s.j = 0;
-        s.runningState = 8;
+        s.runningState = RunningState.COPY_LOOP;
         // fall through
       }
-      case 8: {
+      case RunningState.COPY_LOOP: {
         let src = (s.pos - s.distance) & ringBufferMask;
         let dst = s.pos;
         const copyLength = s.copyLength - s.j;
@@ -1366,21 +1366,21 @@ function decompress(s) {
             s.pos++;
             s.j++;
             if (s.pos >= fence) {
-              s.nextRunningState = 8;
-              s.runningState = 12;
+              s.nextRunningState = RunningState.COPY_LOOP;
+              s.runningState = RunningState.INIT_WRITE;
               break;
             }
           }
         }
-        if (s.runningState == 8) {
-          s.runningState = 4;
+        if (s.runningState == RunningState.COPY_LOOP) {
+          s.runningState = RunningState.MAIN_LOOP;
         }
         continue;
       }
-      case 9:
+      case RunningState.USE_DICTIONARY:
         doUseDictionary(s, fence);
         continue;
-      case 5:
+      case RunningState.READ_METADATA:
         while (s.metaBlockLength > 0) {
           if (s.halfOffset > 2030) {
             doReadMoreInput(s);
@@ -1393,16 +1393,16 @@ function decompress(s) {
           readFewBits(s, 8);
           s.metaBlockLength--;
         }
-        s.runningState = 2;
+        s.runningState = RunningState.BLOCK_START;
         continue;
-      case 6:
+      case RunningState.COPY_UNCOMPRESSED:
         copyUncompressedData(s);
         continue;
-      case 12:
+      case RunningState.INIT_WRITE:
         s.ringBufferBytesReady = min(s.pos, s.ringBufferSize);
-        s.runningState = 13;
+        s.runningState = RunningState.WRITE;
       // fall through
-      case 13:
+      case RunningState.WRITE:
         if (writeRingBuffer(s) == 0) {
           return;
         }
@@ -1422,7 +1422,7 @@ function decompress(s) {
         throw new Error("Unexpected state " + s.runningState);
     }
   }
-  if (s.runningState == 10) {
+  if (s.runningState == RunningState.FINISHED) {
     if (s.metaBlockLength < 0) {
       throw new Error("Invalid metablock length");
     }
@@ -1911,6 +1911,25 @@ function bytesToNibbles(s, byteLen) {
   }
 }
 
+/** @enum {Symbol} */
+const RunningState = {
+  UNINITIALIZED: Symbol(0),
+  INITIALIZED: Symbol(1),
+  BLOCK_START: Symbol(2),
+  COMPRESSED_BLOCK_START: Symbol(3),
+  MAIN_LOOP: Symbol(4),
+  READ_METADATA: Symbol(5),
+  COPY_UNCOMPRESSED: Symbol(6),
+  INSERT_LOOP: Symbol(7),
+  COPY_LOOP: Symbol(8),
+  USE_DICTIONARY: Symbol(9),
+  FINISHED: Symbol(10),
+  CLOSED: Symbol(11),
+  INIT_WRITE: Symbol(12),
+  WRITE: Symbol(13),
+  COPY_FROM_COMPOUND_DICTIONARY: Symbol(14),
+};
+
 /**
  * @constructor
  * @struct
@@ -1961,11 +1980,11 @@ function State() {
   /** @type {!Int32Array} */
   this.distOffset = new Int32Array(0);
 
-  /** @type {!number} */
-  this.runningState = 0;
+  /** @type {RunningState} */
+  this.runningState = RunningState.UNINITIALIZED;
 
-  /** @type {!number} */
-  this.nextRunningState = 0;
+  /** @type {RunningState} */
+  this.nextRunningState = RunningState.UNINITIALIZED;
 
   /** @type {!number} */
   this.accumulator32 = 0;
