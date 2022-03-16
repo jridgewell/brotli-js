@@ -11,11 +11,11 @@ import { LOOKUP } from "./lookup.js";
 
 /**
  * @constructor
- * @param {!Int8Array} bytes
+ * @param {!Uint8Array} bytes
  * @struct
  */
 function InputStream(bytes) {
-  /** @type {!Int8Array} */
+  /** @type {!Uint8Array} */
   this.data = bytes;
 
   /** @type {!number} */
@@ -2165,8 +2165,8 @@ function closeInput(_src) {
 }
 
 /**
- * @param {!Int8Array} bytes
- * @return {!Int8Array}
+ * @param {!Uint8Array} bytes
+ * @return {!Uint8Array}
  */
 function decode(bytes) {
   const s = new State();
@@ -2185,7 +2185,7 @@ function decode(bytes) {
     if (s.outputUsed < 16384) break;
   }
   close(s);
-  const result = new Int8Array(totalOutput);
+  const result = new Uint8Array(totalOutput);
   let offset = 0;
   for (let i = 0; i < chunks.length; ++i) {
     const chunk = chunks[i];

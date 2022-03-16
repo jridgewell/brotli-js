@@ -8,7 +8,7 @@ import assert from "assert";
 
 /**
  * NB: Use intermediate chunks to avoid "Maximum call stack size exceeded".
- * @param {!Int8Array} bytes
+ * @param {!Uint8Array} bytes
  * @return {string}
  */
 function bytesToString(bytes) {
@@ -44,9 +44,9 @@ function repeat(char, count) {
  */
 function checkSynth(compressed, expectSuccess, expectedOutput) {
   let success = true;
-  let actual = new Int8Array();
+  let actual = new Uint8Array();
   try {
-    actual = BrotliDecode(Int8Array.from(compressed));
+    actual = BrotliDecode(Uint8Array.from(compressed));
   } catch (ex) {
     success = false;
   }

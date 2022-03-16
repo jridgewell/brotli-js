@@ -13,7 +13,7 @@ const CRC_64_POLY = new Uint32Array([0xd7870f42, 0xc96c5795]);
 /**
  * Calculates binary data footprint.
  *
- * @param {!Int8Array} data binary data
+ * @param {!Uint8Array} data binary data
  * @return {string} footprint
  */
 function calculateCrc64(data) {
@@ -49,7 +49,7 @@ function calculateCrc64(data) {
  * Decompresses data and checks that output footprint is correct.
  *
  * @param {string} entry filename including footprint prefix
- * @param {!Int8Array} data compressed data
+ * @param {!Uint8Array} data compressed data
  */
 function checkEntry(entry, data) {
   const expectedCrc = entry.substring(0, 16);
@@ -63,6 +63,6 @@ describe("bundle", () => {
   for (let entry in testData) {
     const name = entry.substring(17);
     const data = testData[entry];
-    it(name, checkEntry.bind(null, entry, data));
+    it(name, () => checkEntry(entry, data));
   }
 });

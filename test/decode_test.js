@@ -7,7 +7,7 @@ import { BrotliDecode } from "../src/decode.js";
 import assert from "assert";
 
 /**
- * @param {!Int8Array} bytes
+ * @param {!Uint8Array} bytes
  * @return {string}
  */
 function bytesToString(bytes) {
@@ -18,7 +18,7 @@ describe("decode", () => {
   it("testMetadata", () => {
     assert.strictEqual(
       "",
-      bytesToString(BrotliDecode(Int8Array.from([1, 11, 0, 42, 3])))
+      bytesToString(BrotliDecode(Uint8Array.from([1, 11, 0, 42, 3])))
     );
   });
 });
