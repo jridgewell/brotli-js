@@ -105,7 +105,7 @@ function calculateDistanceAlphabetLimit(maxDistance, npostfix, ndirect) {
  */
 function decodeWindowBits(s) {
   const largeWindowEnabled = s.isLargeWindow;
-  s.isLargeWindow = 0;
+  s.isLargeWindow = false;
   if (s.bitOffset >= 16) {
     s.accumulator32 =
       (s.shortBuffer[s.halfOffset++] << 16) | (s.accumulator32 >>> 16);
@@ -121,10 +121,10 @@ function decodeWindowBits(s) {
   n = readFewBits(s, 3);
   if (n != 0) {
     if (n == 1) {
-      if (largeWindowEnabled == 0) {
+      if (largeWindowEnabled == false) {
         return -1;
       }
-      s.isLargeWindow = 1;
+      s.isLargeWindow = true;
       if (readFewBits(s, 1) == 1) {
         return -1;
       }
@@ -213,16 +213,16 @@ function decodeMetaBlockLength(s) {
       (s.shortBuffer[s.halfOffset++] << 16) | (s.accumulator32 >>> 16);
     s.bitOffset -= 16;
   }
-  s.inputEnd = readFewBits(s, 1);
+  s.inputEnd = readFewBits(s, 1) > 0;
   s.metaBlockLength = 0;
-  s.isUncompressed = 0;
-  s.isMetadata = 0;
-  if (s.inputEnd != 0 && readFewBits(s, 1) != 0) {
+  s.isUncompressed = false;
+  s.isMetadata = false;
+  if (s.inputEnd == true && readFewBits(s, 1) != 0) {
     return;
   }
   const sizeNibbles = readFewBits(s, 2) + 4;
   if (sizeNibbles == 7) {
-    s.isMetadata = 1;
+    s.isMetadata = true;
     if (readFewBits(s, 1) != 0) {
       throw new Error("Corrupted reserved bit");
     }
@@ -257,8 +257,8 @@ function decodeMetaBlockLength(s) {
     }
   }
   s.metaBlockLength++;
-  if (s.inputEnd == 0) {
-    s.isUncompressed = readFewBits(s, 1);
+  if (s.inputEnd == false) {
+    s.isUncompressed = readFewBits(s, 1) > 0;
   }
 }
 
@@ -757,7 +757,7 @@ function maybeReallocateRingBuffer(s) {
     while (newSize >> 1 > minimalNewSize) {
       newSize >>= 1;
     }
-    if (s.inputEnd == 0 && newSize < 16384 && s.maxRingBufferSize >= 16384) {
+    if (s.inputEnd == false && newSize < 16384 && s.maxRingBufferSize >= 16384) {
       newSize = 16384;
     }
   }
@@ -778,7 +778,7 @@ function maybeReallocateRingBuffer(s) {
  * @return {void}
  */
 function readNextMetablockHeader(s) {
-  if (s.inputEnd != 0) {
+  if (s.inputEnd == true) {
     s.nextRunningState = RunningState.FINISHED;
     s.runningState = RunningState.INIT_WRITE;
     return;
@@ -790,16 +790,16 @@ function readNextMetablockHeader(s) {
     doReadMoreInput(s);
   }
   decodeMetaBlockLength(s);
-  if (s.metaBlockLength == 0 && s.isMetadata == 0) {
+  if (s.metaBlockLength == 0 && s.isMetadata == false) {
     return;
   }
-  if (s.isUncompressed != 0 || s.isMetadata != 0) {
+  if (s.isUncompressed == true || s.isMetadata == true) {
     jumpToByteBoundary(s);
-    s.runningState = s.isMetadata != 0 ? RunningState.READ_METADATA : RunningState.COPY_UNCOMPRESSED;
+    s.runningState = s.isMetadata == true ? RunningState.READ_METADATA : RunningState.COPY_UNCOMPRESSED;
   } else {
     s.runningState = RunningState.COMPRESSED_BLOCK_START;
   }
-  if (s.isMetadata != 0) {
+  if (s.isMetadata == true) {
     return;
   }
   s.expectedTotalSize += s.metaBlockLength;
@@ -944,7 +944,7 @@ function readMetablockHuffmanCodesAndContextMaps(s) {
     24
   );
   let distanceAlphabetSizeLimit = distanceAlphabetSizeMax;
-  if (s.isLargeWindow == 1) {
+  if (s.isLargeWindow == true) {
     distanceAlphabetSizeMax = calculateDistanceAlphabetSize(
       s.distancePostfixBits,
       s.numDirectDistanceCodes,
@@ -1052,7 +1052,7 @@ function decodeHuffmanTreeGroup(alphabetSizeMax, alphabetSizeLimit, n, s) {
  */
 function calculateFence(s) {
   let result = s.ringBufferSize;
-  if (s.isEager != 0) {
+  if (s.isEager == true) {
     result = min(
       result,
       s.ringBufferBytesWritten + s.outputLength - s.outputUsed
@@ -1708,7 +1708,7 @@ function buildHuffmanTable(
  * @return {void}
  */
 function doReadMoreInput(s) {
-  if (s.endOfStreamReached != 0) {
+  if (s.endOfStreamReached == true) {
     if (halfAvailable(s) >= -2) {
       return;
     }
@@ -1722,7 +1722,7 @@ function doReadMoreInput(s) {
     const spaceLeft = 4096 - bytesInBuffer;
     const len = readInput(s.input, s.byteBuffer, bytesInBuffer, spaceLeft);
     if (len <= 0) {
-      s.endOfStreamReached = 1;
+      s.endOfStreamReached = true;
       s.tailBytes = bytesInBuffer;
       bytesInBuffer += 1;
       break;
@@ -1738,7 +1738,7 @@ function doReadMoreInput(s) {
  * @return {void}
  */
 function checkHealth(s, endOfStream) {
-  if (s.endOfStreamReached == 0) {
+  if (s.endOfStreamReached == false) {
     return;
   }
   const byteOffset = (s.halfOffset << 1) + ((s.bitOffset + 7) >> 3) - 4;
@@ -1784,7 +1784,7 @@ function initBitReader(s) {
   s.shortBuffer = new Int16Array(2080);
   s.bitOffset = 32;
   s.halfOffset = 2048;
-  s.endOfStreamReached = 0;
+  s.endOfStreamReached = false;
   prepare(s);
 }
 
@@ -1835,7 +1835,7 @@ function jumpToByteBoundary(s) {
  */
 function halfAvailable(s) {
   let limit = 2048;
-  if (s.endOfStreamReached != 0) {
+  if (s.endOfStreamReached == true) {
     limit = (s.tailBytes + 1) >> 1;
   }
   return limit - s.halfOffset;
@@ -1998,20 +1998,20 @@ function State() {
   /** @type {!number} */
   this.tailBytes = 0;
 
-  /** @type {!number} */
-  this.endOfStreamReached = 0;
+  /** @type {!boolean} */
+  this.endOfStreamReached = false;
 
   /** @type {!number} */
   this.metaBlockLength = 0;
 
-  /** @type {!number} */
-  this.inputEnd = 0;
+  /** @type {!boolean} */
+  this.inputEnd = false;
 
-  /** @type {!number} */
-  this.isUncompressed = 0;
+  /** @type {!boolean} */
+  this.isUncompressed = false;
 
-  /** @type {!number} */
-  this.isMetadata = 0;
+  /** @type {!boolean} */
+  this.isMetadata = false;
 
   /** @type {!number} */
   this.literalBlockLength = 0;
@@ -2109,11 +2109,11 @@ function State() {
   /** @type {!number} */
   this.ringBufferBytesReady = 0;
 
-  /** @type {!number} */
-  this.isEager = 0;
+  /** @type {!boolean} */
+  this.isEager = false;
 
-  /** @type {!number} */
-  this.isLargeWindow = 0;
+  /** @type {!boolean} */
+  this.isLargeWindow = false;
 
   /** @type {!InputStream|null} */
   this.input = null;
