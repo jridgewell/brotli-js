@@ -95,8 +95,6 @@ function calculateDistanceAlphabetLimit(maxDistance, npostfix, ndirect) {
  * @return {number}
  */
 function decodeWindowBits(s) {
-  const largeWindowEnabled = s.isLargeWindow;
-  s.isLargeWindow = false;
   if (s.bitOffset >= 16) {
     s.accumulator32 =
       (s.shortBuffer[s.halfOffset++] << 16) | (s.accumulator32 >>> 16);
@@ -112,18 +110,7 @@ function decodeWindowBits(s) {
   n = readFewBits(s, 3);
   if (n != 0) {
     if (n == 1) {
-      if (largeWindowEnabled == false) {
-        return -1;
-      }
-      s.isLargeWindow = true;
-      if (readFewBits(s, 1) == 1) {
-        return -1;
-      }
-      n = readFewBits(s, 6);
-      if (n < 10 || n > 30) {
-        return -1;
-      }
-      return n;
+      return -1;
     } else {
       return 8 + n;
     }
@@ -183,11 +170,12 @@ function decodeMetaBlockLength(s) {
       (s.shortBuffer[s.halfOffset++] << 16) | (s.accumulator32 >>> 16);
     s.bitOffset -= 16;
   }
-  s.inputEnd = readFewBits(s, 1) > 0;
+  s.inputEnd = readFewBits(s, 1) == 1;
   s.metaBlockLength = 0;
   s.isUncompressed = false;
   s.isMetadata = false;
-  if (s.inputEnd == true && readFewBits(s, 1) != 0) {
+  if (s.inputEnd == true && readFewBits(s, 1) == 1) {
+    // ISLASTEMPTY
     return;
   }
   const sizeNibbles = readFewBits(s, 2) + 4;
@@ -727,7 +715,11 @@ function maybeReallocateRingBuffer(s) {
     while (newSize >> 1 > minimalNewSize) {
       newSize >>= 1;
     }
-    if (s.inputEnd == false && newSize < 16384 && s.maxRingBufferSize >= 16384) {
+    if (
+      s.inputEnd == false &&
+      newSize < 16384 &&
+      s.maxRingBufferSize >= 16384
+    ) {
       newSize = 16384;
     }
   }
@@ -765,7 +757,10 @@ function readNextMetablockHeader(s) {
   }
   if (s.isUncompressed == true || s.isMetadata == true) {
     jumpToByteBoundary(s);
-    s.runningState = s.isMetadata == true ? RunningState.READ_METADATA : RunningState.COPY_UNCOMPRESSED;
+    s.runningState =
+      s.isMetadata == true
+        ? RunningState.READ_METADATA
+        : RunningState.COPY_UNCOMPRESSED;
   } else {
     s.runningState = RunningState.COMPRESSED_BLOCK_START;
   }
@@ -914,18 +909,6 @@ function readMetablockHuffmanCodesAndContextMaps(s) {
     24
   );
   let distanceAlphabetSizeLimit = distanceAlphabetSizeMax;
-  if (s.isLargeWindow == true) {
-    distanceAlphabetSizeMax = calculateDistanceAlphabetSize(
-      s.distancePostfixBits,
-      s.numDirectDistanceCodes,
-      62
-    );
-    distanceAlphabetSizeLimit = calculateDistanceAlphabetLimit(
-      0x7ffffffc,
-      s.distancePostfixBits,
-      s.numDirectDistanceCodes
-    );
-  }
   s.distanceTreeGroup = decodeHuffmanTreeGroup(
     distanceAlphabetSizeMax,
     distanceAlphabetSizeLimit,
@@ -973,7 +956,7 @@ function copyUncompressedData(s) {
 
 /**
  * @param {!State} s
- * @return {number}
+ * @return {boolean}
  */
 function writeRingBuffer(s) {
   const toWrite = min(
@@ -992,9 +975,9 @@ function writeRingBuffer(s) {
     s.ringBufferBytesWritten += toWrite;
   }
   if (s.outputUsed < s.outputLength) {
-    return 1;
+    return true;
   } else {
-    return 0;
+    return false;
   }
 }
 
@@ -1022,12 +1005,6 @@ function decodeHuffmanTreeGroup(alphabetSizeMax, alphabetSizeLimit, n, s) {
  */
 function calculateFence(s) {
   let result = s.ringBufferSize;
-  if (s.isEager == true) {
-    result = min(
-      result,
-      s.ringBufferBytesWritten + s.outputLength - s.outputUsed
-    );
-  }
   return result;
 }
 
@@ -1092,7 +1069,6 @@ function decompress(s) {
     s.maxBackwardDistance = s.maxRingBufferSize - 16;
     s.runningState = RunningState.BLOCK_START;
   }
-
   let fence = calculateFence(s);
   let ringBufferMask = s.ringBufferSize - 1;
   let ringBuffer = s.ringBuffer;
@@ -1368,7 +1344,7 @@ function decompress(s) {
         s.runningState = RunningState.WRITE;
       // fall through
       case RunningState.WRITE:
-        if (writeRingBuffer(s) == 0) {
+        if (writeRingBuffer(s) == false) {
           return;
         }
         if (s.pos >= s.maxBackwardDistance) {
@@ -2070,12 +2046,6 @@ function State() {
 
   /** @type {!number} */
   this.ringBufferBytesReady = 0;
-
-  /** @type {!boolean} */
-  this.isEager = false;
-
-  /** @type {!boolean} */
-  this.isLargeWindow = false;
 
   /** @type {!InputStream|null} */
   this.input = null;
