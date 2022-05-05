@@ -4,6 +4,8 @@
    See file LICENSE for detail or copy at https://opensource.org/licenses/MIT
 */
 
+import assert from "assert";
+import { brotliDecompressSync } from "zlib";
 import { data, offsets, sizeBits } from "./dictionary.js";
 import { CMD_LOOKUP } from "./commands.js";
 import { RFC_TRANSFORMS } from "./transforms.js";
@@ -119,6 +121,46 @@ function decodeWindowBits(s) {
 }
 
 /**
+ * @param {number} val
+ * @return {number}
+ */
+function encodeWindowBits(val) {
+  switch (val) {
+    case 10:
+      return 0b0100001;
+    case 11:
+      return 0b0110001;
+    case 12:
+      return 0b1000001;
+    case 13:
+      return 0b1010001;
+    case 14:
+      return 0b1100001;
+    case 15:
+      return 0b1110001;
+    case 16:
+      return 0b0;
+    case 17:
+      return 0b0000001;
+    case 18:
+      return 0b0011;
+    case 19:
+      return 0b0101;
+    case 20:
+      return 0b0111;
+    case 21:
+      return 0b1001;
+    case 22:
+      return 0b1011;
+    case 23:
+      return 0b1101;
+    case 24:
+      return 0b1111;
+  }
+  throw new Error("unexpected window size");
+}
+
+/**
  * @param {!State} s
  * @param {!InputStream} input
  * @return {void}
@@ -180,6 +222,7 @@ function decodeMetaBlockLength(s) {
   }
   const sizeNibbles = readFewBits(s, 2) + 4;
   if (sizeNibbles == 7) {
+    // MNIBBLES is 0b11, an empty data meta-block
     s.isMetadata = true;
     if (readFewBits(s, 1) != 0) {
       throw new Error("Corrupted reserved bit");
@@ -218,6 +261,24 @@ function decodeMetaBlockLength(s) {
   if (s.inputEnd == false) {
     s.isUncompressed = readFewBits(s, 1) > 0;
   }
+}
+
+/**
+ * @param {number} len
+ * @return {number}
+ */
+function encodeMetaBlockLength(len) {
+  // at most 24 bits
+  debug: assert(len > 0 && len < 0b11111111_11111111_11111111);
+  // For some reason, lengths are encoded a nibbles of len-1.
+  return len - 1;
+  len--;
+  let bits = 0;
+  while (len > 0) {
+    bits = (bits << 4) | (len & 4);
+    len >>= 4;
+  }
+  return bits;
 }
 
 /**
@@ -2088,11 +2149,203 @@ function readInput(src, dst, offset, length) {
   return bytesRead;
 }
 
+class BitWriter {
+  #lastBuffer = new Uint8Array(1 << 20);
+  #buffers = [this.#lastBuffer];
+  #len = 0;
+  #totalLen = 0;
+  #bitOffset = 0;
+  #accumulator = 0;
+
+  getBuffer() {
+    this.skipToByteBoundary();
+
+    const result = new Uint8Array(this.#totalLen);
+    const buffers = this.#buffers;
+    let offset = 0;
+    for (let i = 0; i < buffers.length; i++) {
+      const buf = buffers[i];
+      if (i === buffers.length - 1) {
+        result.set(buf.subarray(0, this.#len), offset);
+      } else {
+        result.set(buf, offset);
+        offset += buf.length;
+      }
+    }
+    return result;
+  }
+
+  /**
+   * @param {number} value
+   * @param {number} bits
+   */
+  writeBits(value, bits) {
+    debug: assert(bits <= 24);
+    this.#accumulator |= value << this.#bitOffset;
+    this.#bitOffset += bits;
+
+    this.#flushBits(8);
+  }
+
+  skipToByteBoundary() {
+    if (this.#bitOffset > 0) this.#flushBits(0);
+  }
+
+  /**
+   * @param {Uint8Array} bytes
+   */
+  writeBytes(bytes) {
+    debug: assert(this.#bitOffset === 0);
+    // info: {
+      // for (const b of bytes) {
+        // // eslint-disable-next-line no-undef
+        // console.info(`writing byte 0b${b.toString(2).padStart(8, "0")}`);
+      // }
+    // }
+
+    const buffers = this.#buffers;
+    const len = this.#len;
+    let buf = this.#lastBuffer;
+    const head = buf.subarray(0, len);
+    const tail = buf.subarray(len);
+    buffers[buffers.length - 1] = head;
+    buffers.push(bytes);
+    buffers.push(tail);
+    this.#lastBuffer = tail;
+    this.#len = 0;
+    this.#totalLen += bytes.length;
+  }
+
+  /**
+   * @param {number} n
+   */
+  #flushBits(n) {
+    debug: assert(n === 0 || n === 8);
+    let accumulator = this.#accumulator;
+    let bitOffset = this.#bitOffset;
+    while (bitOffset >= n) {
+      this.#writeByte(accumulator & 0b11111111);
+      accumulator >>>= 8;
+      bitOffset -= 8;
+    }
+    this.#accumulator = accumulator;
+    this.#bitOffset = Math.max(bitOffset, 0);
+  }
+
+  /** @param {number} value */
+  #writeByte(value) {
+    debug: assert(value >= 0 && value <= 0xff);
+    // eslint-disable-next-line no-undef
+    // info: console.info(`writing byte 0b${value.toString(2).padStart(8, "0")}`);
+
+    let buf = this.#lastBuffer;
+    let len = this.#len;
+    if (len === buf.length) {
+      buf = this.#lastBuffer = new Uint8Array(buf.length);
+      this.#buffers.push(buf);
+      len = 0;
+    }
+    buf[len++] = value;
+    this.#len = len;
+    this.#totalLen++;
+  }
+}
+
+/**
+ * @param {!string} prepend
+ * @param {!Uint8Array} bytes
+ * @return {!Uint8Array}
+ */
+function BrotliPrepend(prepend, bytes) {
+  if (prepend.length === 0) return bytes;
+
+  const s = new State();
+  initState(s, new InputStream(bytes));
+
+  const windowBits = decodeWindowBits(s);
+  if (windowBits == -1) {
+    throw new Error("Invalid 'windowBits' code");
+  }
+  s.maxRingBufferSize = 1 << windowBits;
+  s.maxBackwardDistance = s.maxRingBufferSize - 16;
+  s.runningState = RunningState.BLOCK_START;
+
+  const writer = new BitWriter();
+  writer.writeBits(encodeWindowBits(windowBits), s.bitOffset);
+
+  let index = 0;
+  // eslint-disable-next-line no-undef
+  const prependBytes = new TextEncoder().encode(prepend);
+  while (index < prependBytes.length) {
+    // Start new meta block
+    // Set ISLAST to false
+    writer.writeBits(0, 1);
+
+    const remaining = prependBytes.length - index;
+    if (remaining < 1 << 16) {
+      // MNIBBLES of 0b00 means length is encoded in 4*4 bits.
+      writer.writeBits(0b00, 2);
+      writer.writeBits(encodeMetaBlockLength(remaining), 16);
+
+      // ISUNCOMPRESSED
+      writer.writeBits(0b1, 1);
+      writer.skipToByteBoundary();
+      writer.writeBytes(prependBytes.subarray(index, index + (1 << 16)));
+      index += 1 << 16;
+    } else {
+      throw new Error("too much prepend data, haven't implemented");
+    }
+  }
+
+  // TODO:
+  writer.writeBits(1, 1); // ISLAST
+  writer.writeBits(1, 1); // ISLASTEMPTY
+  return writer.getBuffer();
+
+  // let totalOutput = 0;
+  // const [>* @type {!Array<!Int8Array>} <] chunks = [];
+  // while (true) {
+  // const chunk = new Int8Array(16384);
+  // chunks.push(chunk);
+  // s.output = chunk;
+  // s.outputOffset = 0;
+  // s.outputLength = 16384;
+  // s.outputUsed = 0;
+  // decompress(s);
+  // totalOutput += s.outputUsed;
+  // if (s.outputUsed < 16384) break;
+  // }
+
+  // const result = new Uint8Array(totalOutput);
+  // let offset = 0;
+  // for (let i = 0; i < chunks.length; ++i) {
+  // const chunk = chunks[i];
+  // const end = min(totalOutput, offset + 16384);
+  // const len = end - offset;
+  // if (len < 16384) {
+  // result.set(chunk.subarray(0, len), offset);
+  // } else {
+  // result.set(chunk, offset);
+  // }
+  // offset += len;
+  // }
+  // return result;
+}
+
+/**
+ * @param {!Uint8Array} bytes
+ * @return {!Uint8Array} bytes
+ */
+// function decode(bytes) {
+// return brotliDecompressSync(bytes);
+// }
+
 /**
  * @param {!Uint8Array} bytes
  * @return {!Uint8Array}
  */
 function decode(bytes) {
+  debugger;
   const s = new State();
   initState(s, new InputStream(bytes));
 
@@ -2125,5 +2378,4 @@ function decode(bytes) {
   }
   return result;
 }
-
-export { decode as BrotliDecode };
+export { decode as BrotliDecode, BrotliPrepend };

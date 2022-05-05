@@ -4,11 +4,20 @@
    See file LICENSE for detail or copy at https://opensource.org/licenses/MIT
 */
 
-import { BrotliDecode } from "../src/decode.js";
+import { BrotliDecode, BrotliPrepend } from "../src/decode.js";
 import { makeTestData } from "./test_data.js";
 import assert from "assert";
 
 const CRC_64_POLY = new Uint32Array([0xd7870f42, 0xc96c5795]);
+
+/**
+ * @param {Uint8Array} bytes
+ * @return {string}
+ */
+function toString(bytes) {
+  // eslint-disable-next-line no-undef
+  return new TextDecoder().decode(bytes);
+}
 
 /**
  * Calculates binary data footprint.
@@ -50,19 +59,33 @@ function calculateCrc64(data) {
  *
  * @param {string} entry filename including footprint prefix
  * @param {!Uint8Array} data compressed data
+ * @param {!string} prepend
  */
-function checkEntry(entry, data) {
+function checkEntry(entry, data, prepend) {
+  const prepended = BrotliPrepend(prepend, data);
+
+  const decompressed = BrotliDecode(prepended);
+  const head = decompressed.subarray(0, prepend.length);
+  const tail = decompressed.subarray(prepend.length);
+
+  assert.deepEqual(toString(head), prepend);
+
+  const crc = calculateCrc64(tail);
   const expectedCrc = entry.substring(0, 16);
-  const decompressed = BrotliDecode(data);
-  const crc = calculateCrc64(decompressed);
   assert.strictEqual(expectedCrc, crc);
 }
 
 describe("bundle", () => {
   const testData = makeTestData();
+  const short = "a";
+  const medium = short.repeat(1 << 13);
+  const long = medium.repeat(1 << 3);
+
   for (let entry in testData) {
     const name = entry.substring(17);
     const data = testData[entry];
-    it(name, () => checkEntry(entry, data));
+    it(`${name} - short prepend`, () => checkEntry(entry, data, short));
+    it(`${name} - medium prepend`, () => checkEntry(entry, data, medium));
+    // it(`${name} - long prepend`, () => checkEntry(entry, data, long));
   }
 });
